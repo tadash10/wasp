@@ -15,6 +15,7 @@ import (
 var (
 	ConfigPath        string
 	WaitForCompletion bool
+	Store             *SecureStore
 )
 
 var configSetCmd = &cobra.Command{
@@ -51,6 +52,13 @@ func Init(rootCmd *cobra.Command) {
 func Read() {
 	viper.SetConfigFile(ConfigPath)
 	_ = viper.ReadInConfig()
+
+	Store = NewSecureStore()
+	err := Store.Open()
+
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 func L1Host() string {

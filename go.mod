@@ -3,11 +3,13 @@ module github.com/iotaledger/wasp
 go 1.16
 
 require (
+	github.com/99designs/keyring v1.2.1 // indirect
 	github.com/NebulousLabs/errors v0.0.0-20181203160057-9f787ce8f69e // indirect
 	github.com/NebulousLabs/fastrand v0.0.0-20181203155948-6fb6489aac4e // indirect
 	github.com/PuerkitoBio/goquery v1.6.1
 	github.com/VictoriaMetrics/fastcache v1.9.0 // indirect
 	github.com/anthdm/hbbft v0.0.0-20190702061856-0826ffdcf567
+	github.com/awnumar/memguard v0.22.2 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/bygui86/multi-profile/v2 v2.1.0
 	github.com/bytecodealliance/wasmtime-go v0.36.0
@@ -34,6 +36,7 @@ require (
 	github.com/libp2p/go-libp2p-tls v0.3.1
 	github.com/libp2p/go-tcp-transport v0.5.1
 	github.com/linxGnu/grocksdb v1.7.0 // indirect
+	github.com/lmoe/stronghold.rs/bindings/native/go v1.0.0
 	github.com/lucas-clemente/quic-go v0.26.0 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
@@ -65,7 +68,7 @@ require (
 	go.uber.org/dig v1.14.1
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.21.0
-	golang.org/x/crypto v0.0.0-20220331220935-ae2d96664a29
+	golang.org/x/crypto v0.0.0-20220511200225-c6db032c6c88
 	golang.org/x/net v0.0.0-20220325170049-de3da57026de // indirect
 	golang.org/x/sys v0.0.0-20220330033206-e17cdc41300f // indirect
 	golang.org/x/time v0.0.0-20220224211638-0e9765cccd65 // indirect
@@ -80,8 +83,10 @@ require (
 replace (
 	github.com/anthdm/hbbft => github.com/kape1395/hbbft v0.0.0-20210824083459-b949585b7515
 	github.com/ethereum/go-ethereum => github.com/dessaya/go-ethereum v1.10.10-0.20220305060401-18f9e3da0f84
-	//github.com/iotaledger/iota.go/v3 => C:\Users\evaldas\Documents\proj\Go\src\github.com\lunfardo314\iota.go
+
 	github.com/iotaledger/goshimmer => github.com/kape1395/goshimmer v0.7.5-0.20220126105741-2bc797667497
 	github.com/linxGnu/grocksdb => github.com/gohornet/grocksdb v1.6.38-0.20211012114404-55f425442260
+	//github.com/iotaledger/iota.go/v3 => C:\Users\evaldas\Documents\proj\Go\src\github.com\lunfardo314\iota.go
+	github.com/lmoe/stronghold.rs/bindings/native/go => /mnt/Dev/Coding/iota/stronghold_fork/bindings/native/go
 	go.dedis.ch/kyber/v3 v3.0.13 => github.com/kape1395/kyber/v3 v3.0.14-0.20210622094514-fefb81148dc3
 )
