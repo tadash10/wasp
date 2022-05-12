@@ -11,18 +11,18 @@ import "github.com/iotaledger/wasp/packages/wasmvm/wasmlib/go/wasmlib/wasmtypes"
 
 const (
 	ScName        = "accounts"
-	ScDescription = "Core chain account ledger contract"
+	ScDescription = "Chain account ledger contract"
 	HScName       = wasmtypes.ScHname(0x3c4b5e02)
 )
 
 const (
 	ParamAgentID           = "a"
-	ParamDestroyTokens     = "destroyTokens"
+	ParamDestroyTokens     = "y"
 	ParamForceMinimumIotas = "f"
 	ParamForceOpenAccount  = "c"
-	ParamFoundrySN         = "foundrySN"
+	ParamFoundrySN         = "s"
 	ParamNftID             = "z"
-	ParamSupplyDeltaAbs    = "supplyDeltaAbs"
+	ParamSupplyDeltaAbs    = "d"
 	ParamTokenScheme       = "t"
 	ParamTokenTag          = "g"
 )
@@ -34,7 +34,7 @@ const (
 	ResultBalances         = "this"
 	ResultFoundryOutputBin = "b"
 	ResultFoundrySN        = "s"
-	ResultMapping          = "G"
+	ResultMapping          = "this"
 	ResultNftData          = "e"
 	ResultNftIDs           = "i"
 )

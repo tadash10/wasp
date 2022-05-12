@@ -11,18 +11,22 @@ import "github.com/iotaledger/wasp/packages/wasmvm/wasmlib/go/wasmlib/wasmtypes"
 
 const (
 	ScName        = "governance"
-	ScDescription = "Core governance contract"
+	ScDescription = "Governance contract"
 	HScName       = wasmtypes.ScHname(0x17cf909f)
 )
 
 const (
-	ParamChainOwner               = "c"
-	ParamChangeAccessNodesActions = "p"
-	ParamFeePolicyBytes           = "d"
-	ParamMaxBlobSize              = "g"
-	ParamMaxEventSize             = "h"
-	ParamMaxEventsPerReq          = "i"
-	ParamStateControllerAddress   = "S"
+	ParamAccessNodeInfoAccessAPI    = "o"
+	ParamAccessNodeInfoCertificate  = "n"
+	ParamAccessNodeInfoForCommittee = "l"
+	ParamAccessNodeInfoPubKey       = "m"
+	ParamChainOwner                 = "c"
+	ParamChangeAccessNodesActions   = "p"
+	ParamFeePolicyBytes             = "d"
+	ParamMaxBlobSize                = "g"
+	ParamMaxEventSize               = "h"
+	ParamMaxEventsPerReq            = "i"
+	ParamStateControllerAddress     = "S"
 )
 
 const (

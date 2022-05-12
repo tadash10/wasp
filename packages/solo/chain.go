@@ -243,7 +243,7 @@ func (ch *Chain) DeployWasmContract(keyPair *cryptolib.KeyPair, name, fname stri
 //  - chainID
 //  - agentID of the chain owner
 //  - blobCache of contract deployed on the chain in the form of map 'contract hname': 'contract record'
-func (ch *Chain) GetInfo() (*iscp.ChainID, *iscp.AgentID, map[iscp.Hname]*root.ContractRecord) {
+func (ch *Chain) GetInfo() (*iscp.ChainID, iscp.AgentID, map[iscp.Hname]*root.ContractRecord) {
 	res, err := ch.CallView(governance.Contract.Name, governance.ViewGetChainInfo.Name)
 	require.NoError(ch.Env.T, err)
 
@@ -329,7 +329,7 @@ func (ch *Chain) GetEventsForBlock(blockIndex uint32) ([]string, error) {
 }
 
 // CommonAccount return the agentID of the common account (controlled by the owner)
-func (ch *Chain) CommonAccount() *iscp.AgentID {
+func (ch *Chain) CommonAccount() iscp.AgentID {
 	return ch.ChainID.CommonAccount()
 }
 
@@ -381,9 +381,9 @@ func (ch *Chain) IsRequestProcessed(reqID iscp.RequestID) bool {
 		blocklog.ParamRequestID, reqID)
 	require.NoError(ch.Env.T, err)
 	resultDecoder := kvdecoder.New(ret, ch.Log())
-	bin, err := resultDecoder.GetBytes(blocklog.ParamRequestProcessed)
+	isProcessed, err := resultDecoder.GetBool(blocklog.ParamRequestProcessed)
 	require.NoError(ch.Env.T, err)
-	return bin != nil
+	return isProcessed
 }
 
 // GetRequestReceipt gets the log records for a particular request, the block index and request index in the block
@@ -526,7 +526,7 @@ func (ch *Chain) GetAllowedStateControllerAddresses() []iotago.Address {
 
 // RotateStateController rotates the chain to the new controller address.
 // We assume self-governed chain here.
-// Mostly use for the testinng of committee rotation logic, otherwise not much needed for smart contract testing
+// Mostly use for the testing of committee rotation logic, otherwise not much needed for smart contract testing
 func (ch *Chain) RotateStateController(newStateAddr iotago.Address, newStateKeyPair, ownerKeyPair *cryptolib.KeyPair) error {
 	req := NewCallParams(coreutil.CoreContractGovernance, coreutil.CoreEPRotateStateController,
 		coreutil.ParamStateControllerAddress, newStateAddr,
@@ -558,23 +558,10 @@ func (a *L1L2AddressAssets) String() string {
 	return fmt.Sprintf("Address: %s\nL1 ftokens:\n  %s\nL2 ftokens:\n  %s", a.Address, a.AssetsL1, a.AssetsL2)
 }
 
-func getAddr(addrOrKeypair interface{}) iotago.Address {
-	switch a := addrOrKeypair.(type) {
-	case iotago.Address:
-		return a
-	case *cryptolib.KeyPair:
-		return a.GetPublicKey().AsEd25519Address()
-	case cryptolib.KeyPair:
-		return a.GetPublicKey().AsEd25519Address()
-	}
-	panic(xerrors.Errorf("getAddr: wrong type %T", addrOrKeypair))
-}
-
-func (ch *Chain) L1L2Funds(addrOrKeypair interface{}) *L1L2AddressAssets {
-	addr := getAddr(addrOrKeypair)
+func (ch *Chain) L1L2Funds(addr iotago.Address) *L1L2AddressAssets {
 	return &L1L2AddressAssets{
 		Address:  addr,
 		AssetsL1: ch.Env.L1Assets(addr),
-		AssetsL2: ch.L2Assets(iscp.NewAgentID(addr, 0)),
+		AssetsL2: ch.L2Assets(iscp.NewAgentID(addr)),
 	}
 }

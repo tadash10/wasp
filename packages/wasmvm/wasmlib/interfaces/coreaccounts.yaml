@@ -1,5 +1,5 @@
 name: CoreAccounts
-description: Core chain account ledger contract
+description: Chain account ledger contract
 structs: {}
 typedefs: {}
 state: {}
@@ -8,11 +8,11 @@ funcs:
   transferAllowanceTo:
     params:
       agentID=a: AgentID
-      forceOpenAccount=c: Bool
+      forceOpenAccount=c: Bool?
   withdraw: {}
   harvest: 
     params:
-      forceMinimumIotas=f: Uint64
+      forceMinimumIotas=f: BigInt
   foundryCreateNew:
     params:
       tokenScheme=t: Bytes
@@ -21,36 +21,36 @@ funcs:
       foundrySN=s: Uint32
   foundryDestroy:
     params:
-      foundrySN: Uint32
+      foundrySN=s: Uint32
   foundryModifySupply:
     params:
-      foundrySN: Uint32
-      supplyDeltaAbs: BigInt
-      destroyTokens: Bool
+      foundrySN=s: Uint32
+      supplyDeltaAbs=d: BigInt
+      destroyTokens=y: Bool?
 
 views:
   balance:
     params:
       agentID=a: AgentID
     results:
-      balances=this: map[TokenID]Uint64
+      balances=this: map[TokenID]BigInt
   totalAssets:
     results:
-      assets=this: map[TokenID]Uint64
+      assets=this: map[TokenID]BigInt
   accounts:
     results:
-      allAccounts=this: map[TokenID]Uint64
+      allAccounts=this: map[AgentID]Bool
   getAccountNonce:
     params:
-      foundrySN: Uint32
+      agentID=a: AgentID
     results:
       accountNonce=n: Uint64
   getNativeTokenIDRegistry:
     results:
-      mapping=G: map[TokenID]Bool
+      mapping=this: map[TokenID]Bool
   foundryOutput:
     params:
-      foundrySN: Uint32
+      foundrySN=s: Uint32
     results:
       foundryOutputBin=b: Bytes
   accountNFTs:

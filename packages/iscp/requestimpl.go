@@ -65,9 +65,11 @@ func NewOffLedgerRequest(chainID *ChainID, contract, entryPoint Hname, params di
 		contract:   contract,
 		entryPoint: entryPoint,
 		params:     params,
-		nonce:      nonce,
-		gasBudget:  gas.MaxGasPerCall,
 		publicKey:  cryptolib.NewEmptyPublicKey(),
+		signature:  []byte{},
+		nonce:      nonce,
+		allowance:  NewEmptyAllowance(),
+		gasBudget:  gas.MaxGasPerCall,
 	}
 }
 
@@ -241,8 +243,8 @@ func (r *OffLedgerRequestData) WithGasBudget(gasBudget uint64) *OffLedgerRequest
 	return r
 }
 
-func (r *OffLedgerRequestData) WithTransfer(transfer *Allowance) *OffLedgerRequestData {
-	r.allowance = transfer.Clone()
+func (r *OffLedgerRequestData) WithAllowance(allowance *Allowance) *OffLedgerRequestData {
+	r.allowance = allowance.Clone()
 	return r
 }
 
@@ -273,8 +275,8 @@ func (r *OffLedgerRequestData) Params() dict.Dict {
 	return r.params
 }
 
-func (r *OffLedgerRequestData) SenderAccount() *AgentID {
-	return NewAgentID(r.SenderAddress(), 0)
+func (r *OffLedgerRequestData) SenderAccount() AgentID {
+	return NewAgentID(r.SenderAddress())
 }
 
 func (r *OffLedgerRequestData) SenderAddress() iotago.Address {
@@ -419,11 +421,11 @@ func (r *OnLedgerRequestData) Params() dict.Dict {
 	return r.requestMetadata.Params
 }
 
-func (r *OnLedgerRequestData) SenderAccount() *AgentID {
+func (r *OnLedgerRequestData) SenderAccount() AgentID {
 	if r.SenderAddress() == nil || r.requestMetadata == nil {
 		return nil
 	}
-	return NewAgentID(r.SenderAddress(), r.requestMetadata.SenderContract)
+	return NewAgentIDFromAddressAndHname(r.SenderAddress(), r.requestMetadata.SenderContract)
 }
 
 func (r *OnLedgerRequestData) SenderAddress() iotago.Address {
@@ -705,6 +707,14 @@ func ShortRequestIDs(ids []RequestID) []string {
 		ret[i] = ids[i].Short()
 	}
 	return ret
+}
+
+func ShortRequestIDsFromRequests(reqs []Request) []string {
+	requestIDs := make([]RequestID, len(reqs))
+	for i := range reqs {
+		requestIDs[i] = reqs[i].ID()
+	}
+	return ShortRequestIDs(requestIDs)
 }
 
 // endregion ////////////////////////////////////////////////////////////

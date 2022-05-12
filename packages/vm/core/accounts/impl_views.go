@@ -32,7 +32,7 @@ func viewAccounts(ctx iscp.SandboxView) dict.Dict {
 
 func viewGetAccountNonce(ctx iscp.SandboxView) dict.Dict {
 	account := ctx.Params().MustGetAgentID(ParamAgentID)
-	nonce := GetMaxAssumedNonce(ctx.State(), account.Address())
+	nonce := GetMaxAssumedNonce(ctx.State(), account)
 	ret := dict.New()
 	ret.Set(ParamAccountNonce, codec.EncodeUint64(nonce))
 	return ret
@@ -43,7 +43,7 @@ func viewGetNativeTokenIDRegistry(ctx iscp.SandboxView) dict.Dict {
 	mapping := getNativeTokenOutputMapR(ctx.State())
 	ret := dict.New()
 	mapping.MustIterate(func(elemKey []byte, value []byte) bool {
-		ret.Set(kv.Key(elemKey), []byte{0xFF})
+		ret.Set(kv.Key(elemKey), []byte{0xff})
 		return true
 	})
 	return ret

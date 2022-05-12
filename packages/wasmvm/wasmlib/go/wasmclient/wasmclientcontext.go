@@ -10,28 +10,10 @@ import (
 
 	"github.com/iotaledger/wasp/packages/cryptolib"
 	"github.com/iotaledger/wasp/packages/iscp"
-	"github.com/iotaledger/wasp/packages/kv"
-	"github.com/iotaledger/wasp/packages/kv/dict"
 	"github.com/iotaledger/wasp/packages/wasmvm/wasmhost"
+	"github.com/iotaledger/wasp/packages/wasmvm/wasmlib/go/wasmlib"
 	"github.com/iotaledger/wasp/packages/wasmvm/wasmlib/go/wasmlib/wasmtypes"
-	"github.com/mr-tron/base58"
 )
-
-type ArgMap dict.Dict
-
-func (m ArgMap) Get(key string) []byte {
-	return m[kv.Key(key)]
-}
-
-func (m ArgMap) Set(key string, value []byte) {
-	m[kv.Key(key)] = value
-}
-
-type ResMap dict.Dict
-
-func (m ResMap) Get(key string) []byte {
-	return m[kv.Key(key)]
-}
 
 type IEventHandler interface {
 	CallHandler(topic string, params []string)
@@ -50,6 +32,12 @@ type WasmClientContext struct {
 	svcClient     IClientService
 }
 
+var (
+	_ wasmlib.ScHost            = new(WasmClientContext)
+	_ wasmlib.ScFuncCallContext = new(WasmClientContext)
+	_ wasmlib.ScViewCallContext = new(WasmClientContext)
+)
+
 func NewWasmClientContext(svcClient IClientService, chainID *wasmtypes.ScChainID, scName string) *WasmClientContext {
 	s := &WasmClientContext{}
 	s.svcClient = svcClient
@@ -57,18 +45,6 @@ func NewWasmClientContext(svcClient IClientService, chainID *wasmtypes.ScChainID
 	s.scHname = iscp.Hn(scName)
 	s.chainID, s.Err = iscp.ChainIDFromBytes(chainID.Bytes())
 	return s
-}
-
-func (s *WasmClientContext) CallView(viewName string, args ArgMap) (ResMap, error) {
-	return s.CallViewByHname(wasmtypes.NewScHname(viewName), args)
-}
-
-func (s *WasmClientContext) CallViewByHname(hViewName wasmtypes.ScHname, args ArgMap) (ResMap, error) {
-	res, err := s.svcClient.CallViewByHname(s.chainID, s.scHname, iscp.Hname(hViewName), dict.Dict(args))
-	if err != nil {
-		return nil, err
-	}
-	return ResMap(res), nil
 }
 
 func (s *WasmClientContext) ChainID() wasmtypes.ScChainID {
@@ -82,10 +58,6 @@ func (s *WasmClientContext) InitFuncCallContext() {
 func (s *WasmClientContext) InitViewCallContext(hContract wasmtypes.ScHname) wasmtypes.ScHname {
 	_ = wasmhost.Connect(s)
 	return wasmtypes.ScHname(s.scHname)
-}
-
-func (s *WasmClientContext) postRequestOffLedger(hFuncName iscp.Hname, params dict.Dict, allowance *iscp.Allowance, keyPair *cryptolib.KeyPair) {
-	s.ReqID, s.Err = s.svcClient.PostRequest(s.chainID, s.scHname, hFuncName, params, allowance, keyPair)
 }
 
 func (s *WasmClientContext) Register(handler IEventHandler) error {
@@ -163,18 +135,4 @@ func (s *WasmClientContext) stopEventHandlers() {
 	if len(s.eventHandlers) > 0 {
 		s.eventDone <- true
 	}
-}
-
-/////////////////////////////////////////////////////////////////
-
-func Base58Decode(s string) []byte {
-	res, err := base58.Decode(s)
-	if err != nil {
-		panic("invalid base58 encoding")
-	}
-	return res
-}
-
-func Base58Encode(b []byte) string {
-	return base58.Encode(b)
 }
