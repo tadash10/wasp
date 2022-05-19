@@ -3,7 +3,6 @@ package chainclient
 import (
 	iotago "github.com/iotaledger/iota.go/v3"
 	"github.com/iotaledger/wasp/client"
-	"github.com/iotaledger/wasp/packages/cryptolib"
 	"github.com/iotaledger/wasp/packages/iscp"
 	"github.com/iotaledger/wasp/packages/kv/codec"
 	"github.com/iotaledger/wasp/packages/kv/dict"
@@ -18,8 +17,9 @@ type Client struct {
 	Layer1Client nodeconn.L1Client
 	WaspClient   *client.WaspClient
 	ChainID      *iscp.ChainID
-	KeyPair      *cryptolib.KeyPair
-	nonces       map[string]uint64
+	//KeyPair      *cryptolib.KeyPair
+	Owner  Owner
+	nonces map[string]uint64
 }
 
 // New creates a new chainclient.Client
@@ -27,14 +27,16 @@ func New(
 	layer1Client nodeconn.L1Client,
 	waspClient *client.WaspClient,
 	chainID *iscp.ChainID,
-	keyPair *cryptolib.KeyPair,
+	owner Owner,
+	//keyPair *cryptolib.KeyPair,
 ) *Client {
 	return &Client{
 		Layer1Client: layer1Client,
 		WaspClient:   waspClient,
 		ChainID:      chainID,
-		KeyPair:      keyPair,
-		nonces:       make(map[string]uint64),
+		//KeyPair:      keyPair,
+		Owner:  owner,
+		nonces: make(map[string]uint64),
 	}
 }
 
@@ -61,7 +63,8 @@ func (c *Client) Post1Request(
 	params ...PostRequestParams,
 ) (*iotago.Transaction, error) {
 	par := defaultParams(params...)
-	outputs, err := c.Layer1Client.OutputMap(c.KeyPair.Address())
+	//outputs, err := c.Layer1Client.OutputMap(c.KeyPair.Address())
+	outputs, err := c.Layer1Client.OutputMap(c.Owner.Address())
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +84,7 @@ func (c *Client) Post1Request(
 	tx, err := transaction.NewRequestTransaction(
 		transaction.NewRequestTransactionParams{
 			SenderKeyPair:    c.KeyPair,
-			SenderAddress:    c.KeyPair.Address(),
+			SenderAddress:    c.Owner.Address(),
 			UnspentOutputs:   outputs,
 			UnspentOutputIDs: outputIDs,
 			Request: &iscp.RequestParameters{
@@ -115,8 +118,8 @@ func (c *Client) PostOffLedgerRequest(
 ) (*iscp.OffLedgerRequestData, error) {
 	par := defaultParams(params...)
 	if par.Nonce == 0 {
-		c.nonces[c.KeyPair.Address().Key()]++
-		par.Nonce = c.nonces[c.KeyPair.Address().Key()]
+		c.nonces[c.Owner.Address().Key()]++
+		par.Nonce = c.nonces[c.Owner.Address().Key()]
 	}
 	var gasBudget uint64
 	if par.GasBudget == nil {
