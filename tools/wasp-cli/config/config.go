@@ -100,8 +100,9 @@ func GetToken() string {
 	return viper.GetString("authentication.token")
 }
 
-func SetToken(token string) {
-	Set("authentication.token", token)
+func SetToken(token string) error {
+	//Set("authentication.token", token)
+	return Store.SetToken(token)
 }
 
 func WaspClient() *client.WaspClient {

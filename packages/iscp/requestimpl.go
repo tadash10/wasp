@@ -219,9 +219,9 @@ func (r *OffLedgerRequestData) Hash() [32]byte {
 }
 
 // Sign signs essence
-func (r *OffLedgerRequestData) Sign(key *cryptolib.KeyPair) {
+func (r *OffLedgerRequestData) Sign(key cryptolib.VariantKeyPair) {
 	r.publicKey = key.GetPublicKey()
-	r.signature = key.GetPrivateKey().Sign(r.essenceBytes())
+	r.signature = key.Sign(r.essenceBytes())
 }
 
 // FungibleTokens is attached assets to the UTXO. Nil for off-ledger

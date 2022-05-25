@@ -1,10 +1,10 @@
 package transaction
 
 import (
+	"github.com/iotaledger/wasp/packages/cryptolib"
 	"math/big"
 
 	iotago "github.com/iotaledger/iota.go/v3"
-	"github.com/iotaledger/wasp/packages/cryptolib"
 	"github.com/iotaledger/wasp/packages/iscp"
 	"github.com/iotaledger/wasp/packages/parameters"
 	"github.com/iotaledger/wasp/packages/util"
@@ -12,7 +12,7 @@ import (
 )
 
 type NewRequestTransactionParams struct {
-	SenderKeyPair                *cryptolib.KeyPair
+	SenderKeyPair                cryptolib.VariantKeyPair
 	SenderAddress                iotago.Address // might be different from the senderKP address (when sending as NFT or alias)
 	UnspentOutputs               iotago.OutputSet
 	UnspentOutputIDs             iotago.OutputIDs
@@ -84,6 +84,7 @@ func NewRequestTransaction(par NewRequestTransactionParams) (*iotago.Transaction
 	}
 
 	inputsCommitment := inputIDs.OrderedSet(par.UnspentOutputs).MustCommitment()
+
 	return CreateAndSignTx(inputIDs, inputsCommitment, outputs, par.SenderKeyPair, parameters.L1.Protocol.NetworkID())
 }
 

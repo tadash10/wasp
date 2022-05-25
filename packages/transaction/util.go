@@ -267,17 +267,49 @@ func GetVByteCosts(tx *iotago.Transaction) []uint64 {
 	return ret
 }
 
-func CreateAndSignTx(inputs iotago.OutputIDs, inputsCommitment []byte, outputs iotago.Outputs, wallet *cryptolib.KeyPair, networkID uint64) (*iotago.Transaction, error) {
+func signEssence(essence *iotago.TransactionEssence, inputsCommitment []byte, signer iotago.AddressSigner, addrKeys ...iotago.AddressKeys) ([]iotago.Signature, error) {
+	// Sign produces signatures signing the essence for every given AddressKeys.
+	// The produced signatures are in the same order as the AddressKeys.
+	if inputsCommitment == nil || len(inputsCommitment) != iotago.InputsCommitmentLength {
+		return nil, iotago.ErrInvalidInputsCommitment
+	}
+
+	copy(essence.InputsCommitment[:], inputsCommitment)
+
+	signMsg, err := essence.SigningMessage()
+	if err != nil {
+		return nil, err
+	}
+
+	sigs := make([]iotago.Signature, len(addrKeys))
+
+	if signer == nil {
+		signer = iotago.NewInMemoryAddressSigner(addrKeys...)
+	}
+
+	for i, v := range addrKeys {
+		sig, err := signer.Sign(v.Address, signMsg)
+		if err != nil {
+			return nil, err
+		}
+		sigs[i] = sig
+	}
+
+	return sigs, nil
+
+}
+
+func CreateAndSignTx(inputs iotago.OutputIDs, inputsCommitment []byte, outputs iotago.Outputs, wallet cryptolib.VariantKeyPair, networkID uint64) (*iotago.Transaction, error) {
 	essence := &iotago.TransactionEssence{
 		NetworkID: networkID,
 		Inputs:    inputs.UTXOInputs(),
 		Outputs:   outputs,
 	}
 
-	sigs, err := essence.Sign(
-		inputsCommitment,
-		wallet.GetPrivateKey().AddressKeysForEd25519Address(wallet.Address()),
-	)
+	addressKeys := wallet.AddressKeysForEd25519Address(wallet.Address())
+	signer := wallet.AsAddressSigner()
+	sigs, err := signEssence(essence, inputsCommitment, signer, addressKeys)
+
 	if err != nil {
 		return nil, err
 	}

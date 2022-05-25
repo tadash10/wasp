@@ -31,7 +31,8 @@ var loginCmd = &cobra.Command{
 			username = scanner.Text()
 
 			log.Printf("Password: ")
-			passwordBytes, err := term.ReadPassword(int(syscall.Stdin))
+			//goland:noinspection GoRedundantConversion
+			passwordBytes, err := term.ReadPassword(int(syscall.Stdin)) // This "redundant" int() conversion is required to be compatible with Windows.
 			if err != nil {
 				panic(err)
 			}
@@ -51,7 +52,9 @@ var loginCmd = &cobra.Command{
 			panic(err)
 		}
 
-		config.SetToken(token)
+		if config.SetToken(token) != nil {
+			panic(err)
+		}
 
 		log.Printf("Successfully authorized")
 	},

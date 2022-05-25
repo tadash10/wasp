@@ -92,7 +92,7 @@ func NewChainOriginTransaction(
 // The request contains the minimum data needed to bootstrap the chain.
 // The signer must be the same that created the origin transaction.
 func NewRootInitRequestTransaction(
-	keyPair *cryptolib.KeyPair,
+	keyPair cryptolib.VariantKeyPair,
 	chainID *iscp.ChainID,
 	description string,
 	unspentOutputs iotago.OutputSet,

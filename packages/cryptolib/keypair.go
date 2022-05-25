@@ -52,3 +52,11 @@ func (k *KeyPair) GetPublicKey() *PublicKey {
 func (k *KeyPair) Address() *iotago.Ed25519Address {
 	return k.GetPublicKey().AsEd25519Address()
 }
+
+func (k *KeyPair) Sign(data []byte) []byte {
+	return k.GetPrivateKey().Sign(data)
+}
+
+func (k *KeyPair) AddressKeysForEd25519Address(addr *iotago.Ed25519Address) iotago.AddressKeys {
+	return k.privateKey.AddressKeysForEd25519Address(addr)
+}

@@ -3,6 +3,7 @@ package chainclient
 import (
 	iotago "github.com/iotaledger/iota.go/v3"
 	"github.com/iotaledger/wasp/client"
+	"github.com/iotaledger/wasp/packages/cryptolib"
 	"github.com/iotaledger/wasp/packages/iscp"
 	"github.com/iotaledger/wasp/packages/kv/codec"
 	"github.com/iotaledger/wasp/packages/kv/dict"
@@ -17,9 +18,8 @@ type Client struct {
 	Layer1Client nodeconn.L1Client
 	WaspClient   *client.WaspClient
 	ChainID      *iscp.ChainID
-	//KeyPair      *cryptolib.KeyPair
-	Owner  Owner
-	nonces map[string]uint64
+	KeyPair      cryptolib.VariantKeyPair
+	nonces       map[string]uint64
 }
 
 // New creates a new chainclient.Client
@@ -27,16 +27,14 @@ func New(
 	layer1Client nodeconn.L1Client,
 	waspClient *client.WaspClient,
 	chainID *iscp.ChainID,
-	owner Owner,
-	//keyPair *cryptolib.KeyPair,
+	owner cryptolib.VariantKeyPair,
 ) *Client {
 	return &Client{
 		Layer1Client: layer1Client,
 		WaspClient:   waspClient,
 		ChainID:      chainID,
-		//KeyPair:      keyPair,
-		Owner:  owner,
-		nonces: make(map[string]uint64),
+		KeyPair:      owner,
+		nonces:       make(map[string]uint64),
 	}
 }
 
@@ -64,7 +62,7 @@ func (c *Client) Post1Request(
 ) (*iotago.Transaction, error) {
 	par := defaultParams(params...)
 	//outputs, err := c.Layer1Client.OutputMap(c.KeyPair.Address())
-	outputs, err := c.Layer1Client.OutputMap(c.Owner.Address())
+	outputs, err := c.Layer1Client.OutputMap(c.KeyPair.Address())
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +82,7 @@ func (c *Client) Post1Request(
 	tx, err := transaction.NewRequestTransaction(
 		transaction.NewRequestTransactionParams{
 			SenderKeyPair:    c.KeyPair,
-			SenderAddress:    c.Owner.Address(),
+			SenderAddress:    c.KeyPair.Address(),
 			UnspentOutputs:   outputs,
 			UnspentOutputIDs: outputIDs,
 			Request: &iscp.RequestParameters{
@@ -117,8 +115,8 @@ func (c *Client) PostOffLedgerRequest(
 ) (*iscp.OffLedgerRequestData, error) {
 	par := defaultParams(params...)
 	if par.Nonce == 0 {
-		c.nonces[c.Owner.Address().Key()]++
-		par.Nonce = c.nonces[c.Owner.Address().Key()]
+		c.nonces[c.KeyPair.Address().Key()]++
+		par.Nonce = c.nonces[c.KeyPair.Address().Key()]
 	}
 	var gasBudget uint64
 	if par.GasBudget == nil {
@@ -133,6 +131,7 @@ func (c *Client) PostOffLedgerRequest(
 	}
 	offledgerReq.WithNonce(par.Nonce)
 	offledgerReq.Sign(c.KeyPair)
+
 	return offledgerReq, c.WaspClient.PostOffLedgerRequest(c.ChainID, offledgerReq)
 }
 
