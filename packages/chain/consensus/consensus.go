@@ -126,7 +126,7 @@ func New(
 		wal:                              wal,
 	}
 	ret.receivePeerMessagesAttachID = ret.committeePeerGroup.Attach(peering.PeerMessageReceiverConsensus, ret.receiveCommitteePeerMessages)
-	ret.nodeConn.AttachToMilestones(func(milestonePointer *nodeclient.MilestonePointer) {
+	ret.nodeConn.AttachToMilestones(func(milestonePointer *nodeclient.MilestoneInfo) {
 		ret.timeData = &iscp.TimeData{
 			MilestoneIndex: milestonePointer.Index,
 			Time:           time.Unix(int64(milestonePointer.Timestamp), 0),
@@ -313,4 +313,16 @@ func (c *consensus) GetStatusSnapshot() *chain.ConsensusInfo {
 
 func (c *consensus) GetWorkflowStatus() chain.ConsensusWorkflowStatus {
 	return c.workflow
+}
+
+func (c *consensus) GetPipeMetrics() chain.ConsensusPipeMetrics {
+	return &pipeMetrics{
+		eventStateTransitionMsgPipeSize: c.eventStateTransitionMsgPipe.Len(),
+		eventSignedResultMsgPipeSize:    c.eventSignedResultMsgPipe.Len(),
+		eventSignedResultAckMsgPipeSize: c.eventSignedResultAckMsgPipe.Len(),
+		eventInclusionStateMsgPipeSize:  c.eventInclusionStateMsgPipe.Len(),
+		eventTimerMsgPipeSize:           c.eventTimerMsgPipe.Len(),
+		eventVMResultMsgPipeSize:        c.eventVMResultMsgPipe.Len(),
+		eventACSMsgPipeSize:             c.eventACSMsgPipe.Len(),
+	}
 }

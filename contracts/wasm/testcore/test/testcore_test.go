@@ -98,8 +98,6 @@ func TestDeployTestCore(t *testing.T) {
 }
 
 func TestDeployTestCoreWithCreator(t *testing.T) {
-	t.SkipNow() // TODO: not working
-
 	run2(t, func(t *testing.T, w bool) {
 		ctx := deployTestCore(t, w, true)
 		require.NotEqualValues(t, ctx.Originator(), ctx.Creator())
@@ -108,7 +106,7 @@ func TestDeployTestCoreWithCreator(t *testing.T) {
 
 // chainAccountBalances checks the balance of the chain account and the total
 // balance of all accounts, taking any extra uploadWasm() into account
-//nolint:unparam
+
 func chainAccountBalances(ctx *wasmsolo.SoloContext, w bool, chain, total uint64) {
 	if w {
 		// wasm setup takes 1 more iota than core setup due to uploadWasm()

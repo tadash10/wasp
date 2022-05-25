@@ -22,9 +22,9 @@ import (
 )
 
 const ( // TODO set back to false
-	SoloDebug        = true
-	SoloHostTracing  = true
-	SoloStackTracing = true
+	SoloDebug        = false
+	SoloHostTracing  = false
+	SoloStackTracing = false
 )
 
 var (
@@ -45,11 +45,11 @@ var (
 )
 
 const (
-	L2FundsContract   = 1_000_000
-	L2FundsCreator    = 2_000_000
-	L2FundsOriginator = 3_000_000
+	L2FundsContract   = 10 * iscp.Mi
+	L2FundsCreator    = 20 * iscp.Mi
+	L2FundsOriginator = 30 * iscp.Mi
 
-	WasmDustDeposit = 1000
+	WasmDustDeposit = 1 * iscp.Mi
 )
 
 type SoloContext struct {
@@ -235,8 +235,7 @@ func (ctx *SoloContext) Account() *SoloAgent {
 	return &SoloAgent{
 		Env:     ctx.Chain.Env,
 		Pair:    nil,
-		address: ctx.Chain.ChainID.AsAddress(),
-		hname:   iscp.Hn(ctx.scName),
+		agentID: iscp.NewContractAgentID(ctx.Chain.ChainID, iscp.Hn(ctx.scName)),
 	}
 }
 
@@ -254,7 +253,7 @@ func (ctx *SoloContext) AdvanceClockBy(step time.Duration) {
 // The optional tokenID parameter can be used to retrieve the balance for the specific token.
 // When tokenID is omitted, the iota balance is assumed.
 func (ctx *SoloContext) Balance(agent *SoloAgent, tokenID ...wasmtypes.ScTokenID) uint64 {
-	account := iscp.NewAgentIDFromAddressAndHname(agent.address, agent.hname)
+	account := agent.AgentID()
 	switch len(tokenID) {
 	case 0:
 		iotas := ctx.Chain.L2Iotas(account)
@@ -281,8 +280,7 @@ func (ctx *SoloContext) ChainAccount() *SoloAgent {
 	return &SoloAgent{
 		Env:     ctx.Chain.Env,
 		Pair:    nil,
-		address: ctx.Chain.ChainID.AsAddress(),
-		hname:   0,
+		agentID: ctx.Chain.ChainID.CommonAccount(),
 	}
 }
 
@@ -363,7 +361,7 @@ func (ctx *SoloContext) InitViewCallContext(hContract wasmtypes.ScHname) wasmtyp
 // tokens in its address and pre-deposits 10Mi into the corresponding chain account
 func (ctx *SoloContext) NewSoloAgent() *SoloAgent {
 	agent := NewSoloAgent(ctx.Chain.Env)
-	ctx.Chain.MustDepositIotasToL2(10_000_000, agent.Pair)
+	ctx.Chain.MustDepositIotasToL2(10*iscp.Mi, agent.Pair)
 	return agent
 }
 
@@ -375,7 +373,7 @@ func (ctx *SoloContext) NewSoloFoundry(maxSupply interface{}, agent ...*SoloAgen
 // NFTs returns the list of NFTs in the account of the specified agent on
 // the chain associated with ctx.
 func (ctx *SoloContext) NFTs(agent *SoloAgent) []wasmtypes.ScNftID {
-	account := iscp.NewAgentIDFromAddressAndHname(agent.address, agent.hname)
+	account := agent.AgentID()
 	l2nfts := ctx.Chain.L2NFTs(account)
 	nfts := make([]wasmtypes.ScNftID, 0, len(l2nfts))
 	for _, l2nft := range l2nfts {
@@ -394,8 +392,11 @@ func (ctx *SoloContext) OffLedger(agent *SoloAgent) wasmlib.ScFuncCallContext {
 
 // Originator returns a SoloAgent representing the chain originator
 func (ctx *SoloContext) Originator() *SoloAgent {
-	c := ctx.Chain
-	return &SoloAgent{Env: c.Env, Pair: c.OriginatorPrivateKey, address: c.OriginatorAddress}
+	return &SoloAgent{
+		Env:     ctx.Chain.Env,
+		Pair:    ctx.Chain.OriginatorPrivateKey,
+		agentID: ctx.Chain.OriginatorAgentID,
+	}
 }
 
 // Sign is used to force a different agent for signing a Post() request

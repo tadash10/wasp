@@ -12,11 +12,10 @@ funcs:
   withdraw: {}
   harvest: 
     params:
-      forceMinimumIotas=f: BigInt
+      forceMinimumIotas=f: Uint64
   foundryCreateNew:
     params:
       tokenScheme=t: Bytes
-      tokenTag=g: Bytes
     results:
       foundrySN=s: Uint32
   foundryDestroy:

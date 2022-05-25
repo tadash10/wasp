@@ -17,20 +17,12 @@ func (s ImmutableFoundryCreateNewParams) TokenScheme() wasmtypes.ScImmutableByte
 	return wasmtypes.NewScImmutableBytes(s.proxy.Root(ParamTokenScheme))
 }
 
-func (s ImmutableFoundryCreateNewParams) TokenTag() wasmtypes.ScImmutableBytes {
-	return wasmtypes.NewScImmutableBytes(s.proxy.Root(ParamTokenTag))
-}
-
 type MutableFoundryCreateNewParams struct {
 	proxy wasmtypes.Proxy
 }
 
 func (s MutableFoundryCreateNewParams) TokenScheme() wasmtypes.ScMutableBytes {
 	return wasmtypes.NewScMutableBytes(s.proxy.Root(ParamTokenScheme))
-}
-
-func (s MutableFoundryCreateNewParams) TokenTag() wasmtypes.ScMutableBytes {
-	return wasmtypes.NewScMutableBytes(s.proxy.Root(ParamTokenTag))
 }
 
 type ImmutableFoundryDestroyParams struct {
@@ -85,16 +77,16 @@ type ImmutableHarvestParams struct {
 	proxy wasmtypes.Proxy
 }
 
-func (s ImmutableHarvestParams) ForceMinimumIotas() wasmtypes.ScImmutableBigInt {
-	return wasmtypes.NewScImmutableBigInt(s.proxy.Root(ParamForceMinimumIotas))
+func (s ImmutableHarvestParams) ForceMinimumIotas() wasmtypes.ScImmutableUint64 {
+	return wasmtypes.NewScImmutableUint64(s.proxy.Root(ParamForceMinimumIotas))
 }
 
 type MutableHarvestParams struct {
 	proxy wasmtypes.Proxy
 }
 
-func (s MutableHarvestParams) ForceMinimumIotas() wasmtypes.ScMutableBigInt {
-	return wasmtypes.NewScMutableBigInt(s.proxy.Root(ParamForceMinimumIotas))
+func (s MutableHarvestParams) ForceMinimumIotas() wasmtypes.ScMutableUint64 {
+	return wasmtypes.NewScMutableUint64(s.proxy.Root(ParamForceMinimumIotas))
 }
 
 type ImmutableTransferAllowanceToParams struct {

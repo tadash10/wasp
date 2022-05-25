@@ -83,7 +83,7 @@ func transferAllowanceTo(ctx iscp.Sandbox) dict.Dict {
 }
 
 // TODO this is just a temporary value, we need to make deposits fee constant across chains.
-const ConstDepositFeeTmp = uint64(1000)
+const ConstDepositFeeTmp = 1 * iscp.Mi
 
 // withdraw sends caller's funds to the caller on-ledger (cross chain)
 // The caller explicitly specify the funds to withdraw via the allowance in the request
@@ -120,6 +120,7 @@ func withdraw(ctx iscp.Sandbox) dict.Dict {
 	ctx.Requiref(remains.IsEmpty(), "internal: allowance left after must be empty")
 
 	if callerContract != nil && callerContract.Hname() != 0 {
+		// deduct the deposit fee from the allowance, so that there are enough tokens to pay for the deposit on the target chain
 		allowance := iscp.NewAllowanceFungibleTokens(
 			iscp.NewTokensIotas(fundsToWithdraw.Iotas - ConstDepositFeeTmp),
 		)
@@ -157,10 +158,10 @@ func withdraw(ctx iscp.Sandbox) dict.Dict {
 	return nil
 }
 
-// TODO refactor owner of the chain moves all tokens balance the common account to its own account
+// harvest moves all the L2 balances of chain commmon account to chain owner's account
 // Params:
-//   ParamForceMinimumIotas specify the number of IOTAs left on the common account
-//   will be not less than MinimumIotasOnCommonAccount constant
+//   ParamForceMinimumIotas: specify the number of IOTAs left on the common account will be not less than MinimumIotasOnCommonAccount constant
+// TODO refactor owner of the chain moves all tokens balance the common account to its own account
 func harvest(ctx iscp.Sandbox) dict.Dict {
 	ctx.RequireCallerIsChainOwner()
 
@@ -169,15 +170,17 @@ func harvest(ctx iscp.Sandbox) dict.Dict {
 	defer checkLedger(state, "accounts.harvest.exit")
 
 	bottomIotas := ctx.Params().MustGetUint64(ParamForceMinimumIotas, MinimumIotasOnCommonAccount)
+	if bottomIotas > MinimumIotasOnCommonAccount {
+		bottomIotas = MinimumIotasOnCommonAccount
+	}
 	commonAccount := ctx.ChainID().CommonAccount()
 	toWithdraw := GetAccountAssets(state, commonAccount)
-	if toWithdraw.IsEmpty() {
-		// empty toWithdraw, nothing to withdraw. Can't be
+	if toWithdraw.Iotas <= bottomIotas {
+		// below minimum, nothing to withdraw
 		return nil
 	}
-	if toWithdraw.Iotas > bottomIotas {
-		toWithdraw.Iotas -= bottomIotas
-	}
+	ctx.Requiref(toWithdraw.Iotas > bottomIotas, "assertion failed: toWithdraw.Iotas > bottomIotas")
+	toWithdraw.Iotas -= bottomIotas
 	MustMoveBetweenAccounts(state, commonAccount, ctx.Caller(), toWithdraw, nil)
 	return nil
 }
@@ -194,10 +197,9 @@ func foundryCreateNew(ctx iscp.Sandbox) dict.Dict {
 	ts := util.MustTokenScheme(tokenScheme)
 	ts.MeltedTokens = util.Big0
 	ts.MintedTokens = util.Big0
-	tokenTag := ctx.Params().MustGetTokenTag(ParamTokenTag, iotago.TokenTag{})
 
 	// create UTXO
-	sn, dustConsumed := ctx.Privileged().CreateNewFoundry(tokenScheme, tokenTag, nil)
+	sn, dustConsumed := ctx.Privileged().CreateNewFoundry(tokenScheme, nil)
 	ctx.Requiref(dustConsumed > 0, "dustConsumed > 0: assert failed")
 	// dust deposit for the foundry is taken from the allowance and removed from L2 ledger
 	debitIotasFromAllowance(ctx, dustConsumed)

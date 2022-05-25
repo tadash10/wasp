@@ -11,7 +11,6 @@ import (
 	"github.com/iotaledger/wasp/packages/hashing"
 	"github.com/iotaledger/wasp/packages/kv"
 	"github.com/iotaledger/wasp/packages/kv/dict"
-	"github.com/iotaledger/wasp/packages/parameters"
 	"github.com/iotaledger/wasp/packages/vm/gas"
 )
 
@@ -43,8 +42,6 @@ type SandboxBase interface {
 	Gas() Gas
 	// GetNFTInfo returns information about a NFTID (issuer and metadata)
 	GetNFTData(nftID iotago.NFTID) NFT // TODO should this also return the owner of the NFT?
-	// L1Params returns the L1 parameters
-	L1Params() *parameters.L1
 }
 
 type Params struct {
@@ -130,7 +127,7 @@ type Sandbox interface {
 // Privileged is a sub-interface for core contracts. Should not be called by VM plugins
 type Privileged interface {
 	TryLoadContract(programHash hashing.HashValue) error
-	CreateNewFoundry(scheme iotago.TokenScheme, tag iotago.TokenTag, metadata []byte) (uint32, uint64)
+	CreateNewFoundry(scheme iotago.TokenScheme, metadata []byte) (uint32, uint64)
 	DestroyFoundry(uint32) uint64
 	ModifyFoundrySupply(serNum uint32, delta *big.Int) int64
 	BlockContext(construct func(sandbox Sandbox) interface{}, onClose func(interface{})) interface{}
