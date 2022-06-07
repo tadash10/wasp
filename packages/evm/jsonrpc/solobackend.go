@@ -13,16 +13,16 @@ import (
 type SoloBackend struct {
 	Env    *solo.Solo
 	Chain  *solo.Chain
-	pvtKey *cryptolib.KeyPair
+	pvtKey cryptolib.VariantKeyPair
 }
 
 var _ ChainBackend = &SoloBackend{}
 
-func NewSoloBackend(env *solo.Solo, chain *solo.Chain, signer *cryptolib.KeyPair) *SoloBackend {
+func NewSoloBackend(env *solo.Solo, chain *solo.Chain, signer cryptolib.VariantKeyPair) *SoloBackend {
 	return &SoloBackend{env, chain, signer}
 }
 
-func (s *SoloBackend) Signer() *cryptolib.KeyPair {
+func (s *SoloBackend) Signer() cryptolib.VariantKeyPair {
 	return s.pvtKey
 }
 

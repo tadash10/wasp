@@ -25,8 +25,8 @@ func NewWaspClientBackend(chainClient *chainclient.Client) *WaspClientBackend {
 	}
 }
 
-func (w *WaspClientBackend) Signer() *cryptolib.KeyPair {
-	return w.ChainClient.KeyPair.(*cryptolib.KeyPair)
+func (w *WaspClientBackend) Signer() cryptolib.VariantKeyPair {
+	return w.ChainClient.KeyPair
 }
 
 func (w *WaspClientBackend) EstimateGasOnLedger(scName, funName string, transfer *iscp.FungibleTokens, args dict.Dict) (uint64, *iscp.FungibleTokens, error) {

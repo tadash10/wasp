@@ -15,5 +15,5 @@ type ChainBackend interface {
 	EstimateGasOffLedger(scName string, funName string, args dict.Dict) (uint64, *iscp.FungibleTokens, error)
 	PostOffLedgerRequest(scName string, funName string, args dict.Dict, gasBudget uint64) error
 	CallView(scName string, funName string, args dict.Dict) (dict.Dict, error)
-	Signer() *cryptolib.KeyPair
+	Signer() cryptolib.VariantKeyPair
 }
