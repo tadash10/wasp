@@ -44,7 +44,9 @@ func (sm *stateManager) aliasOutputReceived(aliasOutput *iscp.AliasOutputWithID)
 			sm.log.Panicf("L1 inconsistency: governance transition expected in %s", iscp.OID(output.ID()))
 		}*/
 		// it is a state controller address rotation
-		return false // TODO: return here?
+		sm.log.Debugf("aliasOutputReceived:  output index %v, id %v is the same index but different ID as current state output (ID %v); it probably ir governance update output",
+			aliasOutputIndex, aliasOutputIDStr, iscp.OID(sm.stateOutput.ID()))
+		return false
 	}
 	if !sm.syncingBlocks.isSyncing(aliasOutputIndex) {
 		// not interested
@@ -188,7 +190,6 @@ func (sm *stateManager) commitCandidates(candidates []*candidateBlock) {
 	for _, block := range blocks {
 		sm.stateManagerMetrics.RecordBlockSize(block.BlockIndex(), float64(len(block.Bytes())))
 	}
-	sm.chain.GlobalStateSync().SetSolidIndex(calculatedState.BlockIndex())
 
 	if err != nil {
 		sm.log.Errorf("commitCandidates: failed to commit synced changes into DB. Restart syncing. %w", err)
@@ -199,6 +200,7 @@ func (sm *stateManager) commitCandidates(candidates []*candidateBlock) {
 		return
 	}
 	sm.solidState = calculatedState
+	sm.chain.GlobalStateSync().SetSolidIndex(sm.solidState.BlockIndex())
 
 	sm.log.Debugf("commitCandidates: committing of block indices from %v to %v was successful", from, to)
 }

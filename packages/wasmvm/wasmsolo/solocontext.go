@@ -15,6 +15,7 @@ import (
 	"github.com/iotaledger/wasp/packages/iscp/coreutil"
 	"github.com/iotaledger/wasp/packages/solo"
 	"github.com/iotaledger/wasp/packages/util"
+	"github.com/iotaledger/wasp/packages/utxodb"
 	"github.com/iotaledger/wasp/packages/wasmvm/wasmhost"
 	"github.com/iotaledger/wasp/packages/wasmvm/wasmlib/go/wasmlib"
 	"github.com/iotaledger/wasp/packages/wasmvm/wasmlib/go/wasmlib/wasmtypes"
@@ -45,6 +46,9 @@ var (
 )
 
 const (
+	MinGasFee         = 100
+	L1FundsAgent      = utxodb.FundsFromFaucetAmount - 10*iscp.Mi - MinGasFee
+	L2FundsAgent      = 10 * iscp.Mi
 	L2FundsContract   = 10 * iscp.Mi
 	L2FundsCreator    = 20 * iscp.Mi
 	L2FundsOriginator = 30 * iscp.Mi
@@ -64,6 +68,7 @@ type SoloContext struct {
 	isRequest   bool
 	IsWasm      bool
 	keyPair     *cryptolib.KeyPair
+	nfts        map[iotago.NFTID]*iscp.NFT
 	offLedger   bool
 	scName      string
 	Tx          *iotago.Transaction
@@ -284,10 +289,6 @@ func (ctx *SoloContext) ChainAccount() *SoloAgent {
 	}
 }
 
-func (ctx *SoloContext) ChainID() wasmtypes.ScChainID {
-	return ctx.Cvt.ScChainID(ctx.Chain.ChainID)
-}
-
 func (ctx *SoloContext) ChainOwnerID() wasmtypes.ScAgentID {
 	return ctx.Cvt.ScAgentID(ctx.Chain.OriginatorAgentID)
 }
@@ -300,6 +301,10 @@ func (ctx *SoloContext) ContractCreator() wasmtypes.ScAgentID {
 func (ctx *SoloContext) ContractExists(scName string) error {
 	_, err := ctx.Chain.FindContract(scName)
 	return err
+}
+
+func (ctx *SoloContext) CurrentChainID() wasmtypes.ScChainID {
+	return ctx.Cvt.ScChainID(ctx.Chain.ChainID)
 }
 
 // Creator returns a SoloAgent representing the contract creator
@@ -361,7 +366,7 @@ func (ctx *SoloContext) InitViewCallContext(hContract wasmtypes.ScHname) wasmtyp
 // tokens in its address and pre-deposits 10Mi into the corresponding chain account
 func (ctx *SoloContext) NewSoloAgent() *SoloAgent {
 	agent := NewSoloAgent(ctx.Chain.Env)
-	ctx.Chain.MustDepositIotasToL2(10*iscp.Mi, agent.Pair)
+	ctx.Chain.MustDepositIotasToL2(L2FundsAgent+MinGasFee, agent.Pair)
 	return agent
 }
 
@@ -388,6 +393,30 @@ func (ctx *SoloContext) OffLedger(agent *SoloAgent) wasmlib.ScFuncCallContext {
 	ctx.offLedger = true
 	ctx.keyPair = agent.Pair
 	return ctx
+}
+
+// MintNFT tells SoloContext to mint a new NFT issued/owned by the specified agent
+// note that SoloContext will cache the NFT data to be able to use it
+// in Post()s that go through the *SAME* SoloContext
+func (ctx *SoloContext) MintNFT(agent *SoloAgent, metadata []byte) wasmtypes.ScNftID {
+	addr, ok := iscp.AddressFromAgentID(agent.AgentID())
+	if !ok {
+		panic("agent should be an address")
+	}
+	nftInfo, err := ctx.Chain.Env.MintNFTL1(agent.Pair, addr, metadata)
+	if err != nil {
+		panic(err)
+	}
+	nft := &iscp.NFT{
+		ID:       nftInfo.NFTID,
+		Issuer:   addr,
+		Metadata: metadata,
+	}
+	if ctx.nfts == nil {
+		ctx.nfts = make(map[iotago.NFTID]*iscp.NFT)
+	}
+	ctx.nfts[nft.ID] = nft
+	return ctx.Cvt.ScNftID(&nft.ID)
 }
 
 // Originator returns a SoloAgent representing the chain originator

@@ -23,8 +23,9 @@ import (
 )
 
 type (
-	getAccountAssetsFn        func(ch chain.Chain, agentID iscp.AgentID) (*iscp.FungibleTokens, error)
-	hasRequestBeenProcessedFn func(ch chain.Chain, reqID iscp.RequestID) (bool, error)
+	getAccountAssetsFn        func(ch chain.ChainCore, agentID iscp.AgentID) (*iscp.FungibleTokens, error)
+	hasRequestBeenProcessedFn func(ch chain.ChainCore, reqID iscp.RequestID) (bool, error)
+	checkNonceFn              func(ch chain.ChainCore, req iscp.OffLedgerRequest) error
 )
 
 func AddEndpoints(
@@ -32,6 +33,7 @@ func AddEndpoints(
 	getChain chains.ChainProvider,
 	getChainBalance getAccountAssetsFn,
 	hasRequestBeenProcessed hasRequestBeenProcessedFn,
+	checkNonce checkNonceFn,
 	nodePubKey *cryptolib.PublicKey,
 	cacheTTL time.Duration,
 	log *logger.Logger,
@@ -40,6 +42,7 @@ func AddEndpoints(
 		getChain:                getChain,
 		getAccountAssets:        getChainBalance,
 		hasRequestBeenProcessed: hasRequestBeenProcessed,
+		checkNonce:              checkNonce,
 		requestsCache:           expiringcache.New(cacheTTL),
 		nodePubKey:              nodePubKey,
 		log:                     log,
@@ -59,6 +62,7 @@ type offLedgerReqAPI struct {
 	getChain                chains.ChainProvider
 	getAccountAssets        getAccountAssetsFn
 	hasRequestBeenProcessed hasRequestBeenProcessedFn
+	checkNonce              checkNonceFn
 	requestsCache           *expiringcache.ExpiringCache
 	nodePubKey              *cryptolib.PublicKey
 	log                     *logger.Logger
@@ -77,9 +81,9 @@ func (o *offLedgerReqAPI) handleNewRequest(c echo.Context) error {
 	}
 
 	// check req signature
-	if !offLedgerReq.VerifySignature() {
+	if err := offLedgerReq.VerifySignature(); err != nil {
 		o.requestsCache.Set(reqID, true)
-		return httperrors.BadRequest("Invalid signature.")
+		return httperrors.BadRequest(fmt.Sprintf("could not verify: %s", err.Error()))
 	}
 
 	// check req is for the correct chain
@@ -100,8 +104,9 @@ func (o *offLedgerReqAPI) handleNewRequest(c echo.Context) error {
 		return httperrors.ServerError("internal error")
 	}
 
+	defer o.requestsCache.Set(reqID, true)
+
 	if alreadyProcessed {
-		o.requestsCache.Set(reqID, true)
 		return httperrors.BadRequest("request already processed")
 	}
 
@@ -112,11 +117,14 @@ func (o *offLedgerReqAPI) handleNewRequest(c echo.Context) error {
 		return httperrors.ServerError("Unable to get account balance")
 	}
 
-	o.requestsCache.Set(reqID, true)
-
 	if assets.IsEmpty() {
 		return httperrors.BadRequest(fmt.Sprintf("No balance on account %s", offLedgerReq.SenderAccount().String()))
 	}
+
+	if err := o.checkNonce(ch, offLedgerReq); err != nil {
+		return httperrors.BadRequest(fmt.Sprintf("invalid nonce, %v", err))
+	}
+
 	ch.EnqueueOffLedgerRequestMsg(&messages.OffLedgerRequestMsgIn{
 		OffLedgerRequestMsg: messages.OffLedgerRequestMsg{
 			ChainID: ch.ID(),
@@ -128,7 +136,7 @@ func (o *offLedgerReqAPI) handleNewRequest(c echo.Context) error {
 	return c.NoContent(http.StatusAccepted)
 }
 
-func parseParams(c echo.Context) (chainID *iscp.ChainID, req *iscp.OffLedgerRequestData, err error) {
+func parseParams(c echo.Context) (chainID *iscp.ChainID, req iscp.OffLedgerRequest, err error) {
 	chainID, err = iscp.ChainIDFromString(c.Param("chainID"))
 	if err != nil {
 		return nil, nil, httperrors.BadRequest(fmt.Sprintf("Invalid Chain ID %+v: %s", c.Param("chainID"), err.Error()))
@@ -140,12 +148,12 @@ func parseParams(c echo.Context) (chainID *iscp.ChainID, req *iscp.OffLedgerRequ
 		if err = c.Bind(r); err != nil {
 			return nil, nil, httperrors.BadRequest("error parsing request from payload")
 		}
-		rGeneric, err := iscp.RequestDataFromMarshalUtil(marshalutil.New(r.Request.Bytes()))
+		rGeneric, err := iscp.NewRequestFromMarshalUtil(marshalutil.New(r.Request.Bytes()))
 		if err != nil {
-			return nil, nil, httperrors.BadRequest(fmt.Sprintf("error constructing off-ledger request from base64 string: %q", r.Request))
+			return nil, nil, httperrors.BadRequest(fmt.Sprintf("cannot decode off-ledger request: %v", err))
 		}
 		var ok bool
-		if req, ok = rGeneric.(*iscp.OffLedgerRequestData); !ok {
+		if req, ok = rGeneric.(iscp.OffLedgerRequest); !ok {
 			return nil, nil, httperrors.BadRequest("error parsing request: off-ledger request is expected")
 		}
 		return chainID, req, err
@@ -156,11 +164,11 @@ func parseParams(c echo.Context) (chainID *iscp.ChainID, req *iscp.OffLedgerRequ
 	if err != nil {
 		return nil, nil, httperrors.BadRequest("error parsing request from payload")
 	}
-	rGeneric, err := iscp.RequestDataFromMarshalUtil(marshalutil.New(reqBytes))
+	rGeneric, err := iscp.NewRequestFromMarshalUtil(marshalutil.New(reqBytes))
 	if err != nil {
 		return nil, nil, httperrors.BadRequest("error parsing request from payload")
 	}
-	req, ok := rGeneric.(*iscp.OffLedgerRequestData)
+	req, ok := rGeneric.(iscp.OffLedgerRequest)
 	if !ok {
 		return nil, nil, httperrors.BadRequest("error parsing request: off-ledger request expected")
 	}

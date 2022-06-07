@@ -5,33 +5,19 @@ import (
 
 	"github.com/iotaledger/hive.go/marshalutil"
 	iotago "github.com/iotaledger/iota.go/v3"
+	"github.com/iotaledger/wasp/packages/cryptolib"
 	"github.com/iotaledger/wasp/packages/hashing"
 	"github.com/iotaledger/wasp/packages/kv/dict"
 )
-
-func UTXOInputFromMarshalUtil(mu *marshalutil.MarshalUtil) (*iotago.UTXOInput, error) {
-	data, err := mu.ReadBytes(iotago.OutputIDLength)
-	if err != nil {
-		return nil, err
-	}
-	id, err := DecodeOutputID(data)
-	if err != nil {
-		return nil, err
-	}
-	return id.UTXOInput(), nil
-}
-
-func UTXOInputToMarshalUtil(id *iotago.UTXOInput, mu *marshalutil.MarshalUtil) {
-	mu.WriteBytes(EncodeOutputID(id.ID()))
-}
 
 // Request wraps any data which can be potentially be interpreted as a request
 type Request interface {
 	Calldata
 
 	IsOffLedger() bool
-	AsOffLedger() AsOffLedger
-	AsOnLedger() AsOnLedger
+
+	WriteToMarshalUtil(mu *marshalutil.MarshalUtil)
+	readFromMarshalUtil(mu *marshalutil.MarshalUtil) error
 
 	Bytes() []byte
 	String() string
@@ -45,14 +31,13 @@ type TimeData struct {
 type Calldata interface {
 	ID() RequestID
 	Params() dict.Dict
-	SenderAccount() AgentID // returns nil if sender address is not available
-	SenderAddress() iotago.Address
+	SenderAccount() AgentID
 	CallTarget() CallTarget
 	TargetAddress() iotago.Address   // TODO implement properly. Target depends on time assumptions and UTXO type
 	FungibleTokens() *FungibleTokens // attached assets for the UTXO request, nil for off-ledger. All goes to sender
 	NFT() *NFT                       // Not nil if the request is an NFT request
 	Allowance() *Allowance           // transfer of assets to the smart contract. Debited from sender account
-	GasBudget() uint64
+	GasBudget() (gas uint64, isEVM bool)
 }
 
 type Features interface {
@@ -61,11 +46,26 @@ type Features interface {
 	ReturnAmount() (uint64, bool)
 }
 
-type AsOffLedger interface {
+type OffLedgerRequestData interface {
+	ChainID() *ChainID
 	Nonce() uint64
 }
 
-type AsOnLedger interface {
+type UnsignedOffLedgerRequest interface {
+	WithNonce(nonce uint64) UnsignedOffLedgerRequest
+	WithGasBudget(gasBudget uint64) UnsignedOffLedgerRequest
+	WithAllowance(allowance *Allowance) UnsignedOffLedgerRequest
+	Sign(key cryptolib.VariantKeyPair) OffLedgerRequest
+}
+
+type OffLedgerRequest interface {
+	Request
+	OffLedgerRequestData
+	VerifySignature() error
+}
+
+type OnLedgerRequest interface {
+	Request
 	Output() iotago.Output
 	IsInternalUTXO(*ChainID) bool
 	UTXOInput() iotago.UTXOInput
@@ -129,7 +129,7 @@ func RequestsInTransaction(tx *iotago.Transaction) (map[ChainID][]Request, error
 // don't process any request which deadline will expire within 1 minute
 const RequestConsideredExpiredWindow = time.Minute * 1
 
-func RequestIsExpired(req AsOnLedger, currentTime TimeData) bool {
+func RequestIsExpired(req OnLedgerRequest, currentTime TimeData) bool {
 	expiry, _ := req.Features().Expiry()
 	if expiry == nil {
 		return false
@@ -140,7 +140,7 @@ func RequestIsExpired(req AsOnLedger, currentTime TimeData) bool {
 	return !expiry.Time.IsZero() && currentTime.Time.After(expiry.Time.Add(-RequestConsideredExpiredWindow))
 }
 
-func RequestIsUnlockable(req AsOnLedger, chainAddress iotago.Address, currentTime TimeData) bool {
+func RequestIsUnlockable(req OnLedgerRequest, chainAddress iotago.Address, currentTime TimeData) bool {
 	if RequestIsExpired(req, currentTime) {
 		return false
 	}

@@ -9,6 +9,7 @@ type WaspConfigParams struct {
 	PeeringPort                  int
 	NanomsgPort                  int
 	L1APIAddress                 string
+	L1UseRemotePow               bool
 	ProfilingPort                int
 	MetricsPort                  int
 	OffledgerBroadcastUpToNPeers int
@@ -18,7 +19,7 @@ type WaspConfigParams struct {
 const WaspConfig = `
 {
   "database": {
-    "inMemory": true,
+    "inMemory": false,
     "directory": "waspdb"
   },
   "logger": {
@@ -57,7 +58,10 @@ const WaspConfig = `
     "port": {{.PeeringPort}},
     "netid": "127.0.0.1:{{.PeeringPort}}"
   },
-  "L1APIAddress": "{{.L1APIAddress}}",
+  "l1": {
+    "apiAddress": "{{.L1APIAddress}}",
+    "useRemotePow": {{.L1UseRemotePow}}
+  },
   "nanomsg":{
     "port": {{.NanomsgPort}}
   },

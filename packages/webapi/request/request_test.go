@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/iotaledger/hive.go/events"
+	"github.com/iotaledger/hive.go/kvstore"
 	iotago "github.com/iotaledger/iota.go/v3"
 	"github.com/iotaledger/wasp/packages/chain"
 	"github.com/iotaledger/wasp/packages/chain/messages"
@@ -26,13 +27,7 @@ type mockedChain struct {
 	*testchain.MockedChainCore
 }
 
-var (
-	_ chain.Chain         = &mockedChain{}
-	_ chain.ChainCore     = &mockedChain{} // from testchain.MockedChainCore
-	_ chain.ChainEntry    = &mockedChain{}
-	_ chain.ChainRequests = &mockedChain{}
-	_ chain.ChainMetrics  = &mockedChain{}
-)
+var _ chain.Chain = &mockedChain{}
 
 // chain.ChainRequests implementation
 
@@ -84,6 +79,16 @@ func (m *mockedChain) GetConsensusPipeMetrics() chain.ConsensusPipeMetrics {
 	panic("implement me")
 }
 
+// chain.ChainRunner implementation
+
+func (*mockedChain) GetDB() kvstore.KVStore {
+	panic("unimplemented")
+}
+
+func (*mockedChain) GetTimeData() iscp.TimeData {
+	panic("unimplemented")
+}
+
 // private methods
 
 func createMockedGetChain(t *testing.T) chains.ChainProvider {
@@ -96,14 +101,18 @@ func createMockedGetChain(t *testing.T) chains.ChainProvider {
 	}
 }
 
-func getAccountBalanceMocked(_ chain.Chain, _ iscp.AgentID) (*iscp.FungibleTokens, error) {
+func getAccountBalanceMocked(_ chain.ChainCore, _ iscp.AgentID) (*iscp.FungibleTokens, error) {
 	return iscp.NewTokensIotas(100), nil
 }
 
 func hasRequestBeenProcessedMocked(ret bool) hasRequestBeenProcessedFn {
-	return func(_ chain.Chain, _ iscp.RequestID) (bool, error) {
+	return func(_ chain.ChainCore, _ iscp.RequestID) (bool, error) {
 		return ret, nil
 	}
+}
+
+func checkNonceMocked(ch chain.ChainCore, req iscp.OffLedgerRequest) error {
+	return nil
 }
 
 func newMockedAPI(t *testing.T) *offLedgerReqAPI {
@@ -111,6 +120,7 @@ func newMockedAPI(t *testing.T) *offLedgerReqAPI {
 		getChain:                createMockedGetChain(t),
 		getAccountAssets:        getAccountBalanceMocked,
 		hasRequestBeenProcessed: hasRequestBeenProcessedMocked(false),
+		checkNonce:              checkNonceMocked,
 		requestsCache:           expiringcache.New(10 * time.Second),
 	}
 }

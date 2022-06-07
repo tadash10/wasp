@@ -183,12 +183,11 @@ func (r *CallParams) WithSender(sender iotago.Address) *CallParams {
 }
 
 // NewRequestOffLedger creates off-ledger request from parameters
-func (r *CallParams) NewRequestOffLedger(chainID *iscp.ChainID, keyPair *cryptolib.KeyPair) *iscp.OffLedgerRequestData {
+func (r *CallParams) NewRequestOffLedger(chainID *iscp.ChainID, keyPair *cryptolib.KeyPair) iscp.OffLedgerRequest {
 	ret := iscp.NewOffLedgerRequest(chainID, r.target, r.entryPoint, r.params, r.nonce).
 		WithGasBudget(r.gasBudget).
 		WithAllowance(r.allowance)
-	ret.Sign(keyPair)
-	return ret
+	return ret.Sign(keyPair)
 }
 
 func parseParams(params []interface{}) dict.Dict {
@@ -329,18 +328,11 @@ func (ch *Chain) PostRequestSync(req *CallParams, keyPair *cryptolib.KeyPair) (d
 }
 
 func (ch *Chain) PostRequestOffLedger(req *CallParams, keyPair *cryptolib.KeyPair) (dict.Dict, error) {
-	defer ch.logRequestLastBlock()
-
 	if keyPair == nil {
 		keyPair = ch.OriginatorPrivateKey
 	}
 	r := req.NewRequestOffLedger(ch.ChainID, keyPair)
-	results := ch.runRequestsSync([]iscp.Request{r}, "off-ledger")
-	if len(results) == 0 {
-		return nil, xerrors.Errorf("request was skipped")
-	}
-	res := results[0]
-	return res.Return, res.Error
+	return ch.RunOffLedgerRequest(r)
 }
 
 func (ch *Chain) PostRequestSyncTx(req *CallParams, keyPair *cryptolib.KeyPair) (*iotago.Transaction, dict.Dict, error) {

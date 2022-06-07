@@ -43,8 +43,6 @@ import (
 	"golang.org/x/xerrors"
 )
 
-// utxodb.FundsFromFaucetAmount is the default amount of tokens returned by the UTXODB faucet
-// which is therefore the amount returned by NewPrivateKeyWithFunds() and such
 const (
 	MaxRequestsInBlock = 100
 	timeLayout         = "04:05.000000000"
@@ -402,8 +400,7 @@ func (ch *Chain) collateBatch() []iscp.Request {
 	ret := make([]iscp.Request, 0)
 	for _, req := range ready[:batchSize] {
 		if !req.IsOffLedger() {
-			onLedgerReq := req.AsOnLedger()
-			if !iscp.RequestIsUnlockable(onLedgerReq, ch.ChainID.AsAddress(), now) {
+			if !iscp.RequestIsUnlockable(req.(iscp.OnLedgerRequest), ch.ChainID.AsAddress(), now) {
 				continue
 			}
 		}

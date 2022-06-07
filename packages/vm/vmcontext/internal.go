@@ -104,7 +104,7 @@ func (vmctx *VMContext) GetNativeTokenBalanceTotal(tokenID *iotago.NativeTokenID
 func (vmctx *VMContext) GetAssets(agentID iscp.AgentID) *iscp.FungibleTokens {
 	var ret *iscp.FungibleTokens
 	vmctx.callCore(accounts.Contract, func(s kv.KVStore) {
-		ret = accounts.GetAssets(s, agentID)
+		ret = accounts.GetAccountAssets(s, agentID)
 		if ret == nil {
 			ret = &iscp.FungibleTokens{}
 		}
@@ -207,13 +207,13 @@ func (vmctx *VMContext) MustSaveEvent(contract iscp.Hname, msg string) {
 
 // updateOffLedgerRequestMaxAssumedNonce updates stored nonce for off ledger requests
 func (vmctx *VMContext) updateOffLedgerRequestMaxAssumedNonce() {
-	vmctx.gasBurnEnable(false)
-	defer vmctx.gasBurnEnable(true)
+	vmctx.GasBurnEnable(false)
+	defer vmctx.GasBurnEnable(true)
 	vmctx.callCore(accounts.Contract, func(s kv.KVStore) {
 		accounts.SaveMaxAssumedNonce(
 			s,
 			vmctx.req.SenderAccount(),
-			vmctx.req.AsOffLedger().Nonce(),
+			vmctx.req.(iscp.OffLedgerRequest).Nonce(),
 		)
 	})
 }

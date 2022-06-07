@@ -38,6 +38,10 @@ TESTS=(\
     "TestIncLocalStatePost" \
     "TestIncViewCounter" \
     "TestIncCounterDelay" \
+    "TestAccessNodesOffLedger" \
+    "TestEVMJsonRPCClusterGetLogs" \
+    "TestEVMJsonRPCClusterGasLimit" \
+    "TestEVMJsonRPCClusterInvalidNonce" \
 )
 TEMP_LOG_FILE="testTemp.log"
 WD=$PWD

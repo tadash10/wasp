@@ -1,23 +1,22 @@
 package vmcontext
 
 import (
+	"fmt"
 	"time"
 
-	"github.com/iotaledger/wasp/packages/vm/vmcontext/vmexceptions"
-
-	"github.com/iotaledger/wasp/packages/kv"
-
 	iotago "github.com/iotaledger/iota.go/v3"
-
+	"github.com/iotaledger/wasp/packages/iscp"
+	"github.com/iotaledger/wasp/packages/kv"
 	"github.com/iotaledger/wasp/packages/vm/core/accounts"
 	"github.com/iotaledger/wasp/packages/vm/core/blocklog"
+	"github.com/iotaledger/wasp/packages/vm/vmcontext/vmexceptions"
 	"golang.org/x/xerrors"
 )
 
 const (
 	// OffLedgerNonceStrictOrderTolerance how many steps back the nonce is considered too old
 	// within this limit order of nonces is not checked
-	OffLedgerNonceStrictOrderTolerance = 10000
+	OffLedgerNonceStrictOrderTolerance = 10_000
 	// ExpiryUnlockSafetyWindowDuration creates safety window around time assumption,
 	// the UTXO won't be consumed to avoid race conditions
 	ExpiryUnlockSafetyWindowDuration  = 1 * time.Minute
@@ -58,6 +57,17 @@ func (vmctx *VMContext) checkReasonRequestProcessed() error {
 	return nil
 }
 
+func CheckNonce(req iscp.OffLedgerRequest, maxAssumedNonce uint64) error {
+	if maxAssumedNonce <= OffLedgerNonceStrictOrderTolerance {
+		return nil
+	}
+	nonce := req.Nonce()
+	if nonce < maxAssumedNonce-OffLedgerNonceStrictOrderTolerance {
+		return fmt.Errorf("nonce %d is too old", nonce)
+	}
+	return nil
+}
+
 // checkReasonToSkipOffLedger checks reasons to skip off ledger request
 func (vmctx *VMContext) checkReasonToSkipOffLedger() error {
 	// first checks if it is already in backlog
@@ -72,17 +82,7 @@ func (vmctx *VMContext) checkReasonToSkipOffLedger() error {
 		maxAssumed = accounts.GetMaxAssumedNonce(vmctx.State(), vmctx.req.SenderAccount())
 	})
 
-	nonce := vmctx.req.AsOffLedger().Nonce()
-	vmctx.Debugf("vmctx.validateRequest - nonce check - maxAssumed: %d, tolerance: %d, request nonce: %d ",
-		maxAssumed, OffLedgerNonceStrictOrderTolerance, nonce)
-
-	if maxAssumed < OffLedgerNonceStrictOrderTolerance {
-		return nil
-	}
-	if nonce > maxAssumed-OffLedgerNonceStrictOrderTolerance {
-		return xerrors.Errorf("nonce %d is too old", nonce)
-	}
-	return nil
+	return CheckNonce(vmctx.req.(iscp.OffLedgerRequest), maxAssumed)
 }
 
 // checkReasonToSkipOnLedger check reasons to skip UTXO request
@@ -110,7 +110,7 @@ func (vmctx *VMContext) checkReasonToSkipOnLedger() error {
 
 func (vmctx *VMContext) checkInternalOutput() error {
 	// internal outputs are used for internal accounting of assets inside the chain. They are not interpreted as requests
-	if vmctx.req.AsOnLedger().IsInternalUTXO(vmctx.ChainID()) {
+	if vmctx.req.(iscp.OnLedgerRequest).IsInternalUTXO(vmctx.ChainID()) {
 		return xerrors.New("it is an internal output")
 	}
 	return nil
@@ -119,7 +119,7 @@ func (vmctx *VMContext) checkInternalOutput() error {
 // checkReasonTimeLock checking timelock conditions based on time assumptions.
 // VM must ensure that the UTXO can be unlocked
 func (vmctx *VMContext) checkReasonTimeLock() error {
-	lock := vmctx.req.AsOnLedger().Features().TimeLock()
+	lock := vmctx.req.(iscp.OnLedgerRequest).Features().TimeLock()
 	if lock != nil {
 		if !lock.Time.IsZero() {
 			if vmctx.finalStateTimestamp.Before(lock.Time) {
@@ -136,7 +136,7 @@ func (vmctx *VMContext) checkReasonTimeLock() error {
 // checkReasonExpiry checking expiry conditions based on time assumptions.
 // VM must ensure that the UTXO can be unlocked
 func (vmctx *VMContext) checkReasonExpiry() error {
-	expiry, _ := vmctx.req.AsOnLedger().Features().Expiry()
+	expiry, _ := vmctx.req.(iscp.OnLedgerRequest).Features().Expiry()
 
 	if expiry == nil {
 		return nil
@@ -160,7 +160,7 @@ func (vmctx *VMContext) checkReasonExpiry() error {
 	}
 
 	// General unlock validation
-	output, _ := vmctx.req.AsOnLedger().Output().(iotago.TransIndepIdentOutput)
+	output, _ := vmctx.req.(iscp.OnLedgerRequest).Output().(iotago.TransIndepIdentOutput)
 
 	unlockable := output.UnlockableBy(vmctx.task.AnchorOutput.AliasID.ToAddress(), &iotago.ExternalUnlockParameters{
 		ConfUnix:    uint32(vmctx.finalStateTimestamp.Unix()),
@@ -176,7 +176,7 @@ func (vmctx *VMContext) checkReasonExpiry() error {
 
 // checkReasonReturnAmount skipping anything with return amounts in this version. There's no risk to lose funds
 func (vmctx *VMContext) checkReasonReturnAmount() error {
-	if _, ok := vmctx.req.AsOnLedger().Features().ReturnAmount(); ok {
+	if _, ok := vmctx.req.(iscp.OnLedgerRequest).Features().ReturnAmount(); ok {
 		return xerrors.New("return amount feature not supported in this version")
 	}
 	return nil
