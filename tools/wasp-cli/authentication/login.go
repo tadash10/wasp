@@ -31,8 +31,7 @@ var loginCmd = &cobra.Command{
 			username = scanner.Text()
 
 			log.Printf("Password: ")
-			//goland:noinspection GoRedundantConversion
-			passwordBytes, err := term.ReadPassword(int(syscall.Stdin)) // This "redundant" int() conversion is required to be compatible with Windows.
+			passwordBytes, err := term.ReadPassword(int(syscall.Stdin)) //nolint:unconvert // int cast is needed for windows
 			if err != nil {
 				panic(err)
 			}

@@ -7,12 +7,12 @@ import (
 	"github.com/iotaledger/wasp/packages/solo"
 	"github.com/iotaledger/wasp/packages/testutil/testmisc"
 	"github.com/iotaledger/wasp/packages/vm/core/errors/coreerrors"
-	"github.com/iotaledger/wasp/packages/vm/core/testcore_stardust/sbtests/sbtestsc"
+	"github.com/iotaledger/wasp/packages/vm/core/testcore/sbtests/sbtestsc"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPanicFull(t *testing.T) { run2(t, testPanicFull) }
-func testPanicFull(t *testing.T, w bool) {
+func testPanicFull(t *testing.T, w bool) { //nolint:dupl
 	_, chain := setupChain(t, nil)
 	setupTestSandboxSC(t, chain, nil, w)
 
@@ -105,7 +105,7 @@ func testCallPanicFull(t *testing.T, w bool) {
 }
 
 func TestCallPanicViewFromFull(t *testing.T) { run2(t, testCallPanicViewFromFull) }
-func testCallPanicViewFromFull(t *testing.T, w bool) {
+func testCallPanicViewFromFull(t *testing.T, w bool) { //nolint:dupl
 	_, chain := setupChain(t, nil)
 	setupTestSandboxSC(t, chain, nil, w)
 

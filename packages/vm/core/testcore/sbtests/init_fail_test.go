@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/iotaledger/wasp/packages/vm/core/corecontracts"
-	"github.com/iotaledger/wasp/packages/vm/core/testcore_stardust/sbtests/sbtestsc"
+	"github.com/iotaledger/wasp/packages/vm/core/testcore/sbtests/sbtestsc"
 	"github.com/stretchr/testify/require"
 )
 
@@ -37,7 +37,7 @@ func TestInitFailRepeat(t *testing.T) {
 }
 
 func TestInitFailRepeatWasm(t *testing.T) {
-	if FORCE_SKIP_WASM {
+	if forceSkipWasm {
 		t.SkipNow()
 	}
 	_, chain := setupChain(t, nil)

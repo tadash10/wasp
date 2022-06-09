@@ -10,7 +10,7 @@ import (
 	"github.com/iotaledger/wasp/packages/iscp"
 	"github.com/iotaledger/wasp/packages/solo"
 	"github.com/iotaledger/wasp/packages/testutil/testmisc"
-	"github.com/iotaledger/wasp/packages/vm/core/testcore_stardust/sbtests/sbtestsc"
+	"github.com/iotaledger/wasp/packages/vm/core/testcore/sbtests/sbtestsc"
 	"github.com/iotaledger/wasp/packages/vm/gas"
 	"github.com/stretchr/testify/require"
 )
@@ -49,7 +49,7 @@ func testTxWithGasOverLimit(t *testing.T, w bool) {
 func TestBlockGasOverflow(t *testing.T) { run2(t, testBlockGasOverflow) }
 
 func testBlockGasOverflow(t *testing.T, w bool) {
-	if !FORCE_RUST_WASM && w {
+	if !forceRustWasm && w {
 		t.SkipNow()
 	}
 	_, ch := setupChain(t, nil)
@@ -89,7 +89,7 @@ func testBlockGasOverflow(t *testing.T, w bool) {
 
 func TestViewGasBlock(t *testing.T) { run2(t, testViewGasBlock) }
 func testViewGasBlock(t *testing.T, w bool) {
-	if !FORCE_RUST_WASM && w {
+	if !forceRustWasm && w {
 		t.SkipNow()
 	}
 	_, ch := setupChain(t, nil)

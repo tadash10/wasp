@@ -101,8 +101,16 @@ func newNodeConn(config L1Config, log *logger.Logger, initMqttClient bool, timeo
 		log:     log.Named("nc"),
 		config:  config,
 	}
+
 	if initMqttClient {
 		go nc.run()
+		for {
+			if nc.mqttClient.MQTTClient.IsConnected() {
+				break
+			}
+			nc.log.Debugf("waiting until mqtt client is connected")
+			time.Sleep(1 * time.Second)
+		}
 	}
 	return &nc
 }
@@ -224,7 +232,10 @@ func (nc *nodeConn) doPostTx(ctx context.Context, tx *iotago.Transaction) (*iota
 	if err != nil {
 		return nil, xerrors.Errorf("failed to build a tx: %w", err)
 	}
-	nc.doPoW(ctx, block)
+	err = nc.doPoW(ctx, block)
+	if err != nil {
+		return nil, xerrors.Errorf("failed duing PoW: %w", err)
+	}
 	block, err = nc.nodeAPIClient.SubmitBlock(ctx, block, parameters.L1.Protocol)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to submit a tx: %w", err)
