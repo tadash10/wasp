@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-
 	"github.com/iotaledger/wasp/client"
 	"github.com/iotaledger/wasp/packages/nodeconn"
 	"github.com/iotaledger/wasp/packages/testutil/privtangle/privtangledefaults"
@@ -14,6 +13,7 @@ import (
 var (
 	ConfigPath        string
 	WaitForCompletion bool
+	FileStorePassword string
 	Store             *SecureStore
 )
 
@@ -40,7 +40,12 @@ const (
 	HostKindNanomsg = "nanomsg"
 )
 
+const FilePasswordEnvKey string = "FILE_STORE_PASSWORD"
+
 func Init(rootCmd *cobra.Command) {
+	viper.AutomaticEnv()
+
+	rootCmd.PersistentFlags().StringVarP(&FileStorePassword, "file-store-password", "p", viper.GetString(FilePasswordEnvKey), "Password to open [file] store")
 	rootCmd.PersistentFlags().StringVarP(&ConfigPath, "config", "c", "wasp-cli.json", "path to wasp-cli.json")
 	rootCmd.PersistentFlags().BoolVarP(&WaitForCompletion, "wait", "w", true, "wait for request completion")
 
@@ -49,7 +54,11 @@ func Init(rootCmd *cobra.Command) {
 }
 
 func Read() {
+	viper.AutomaticEnv()
+
 	viper.SetConfigFile(ConfigPath)
+	viper.SetDefault("wallet.scheme", WalletDefaultScheme)
+	log.Printf(ConfigPath)
 	_ = viper.ReadInConfig()
 
 	Store = NewSecureStore()
@@ -101,7 +110,6 @@ func GetToken() string {
 }
 
 func SetToken(token string) error {
-	//Set("authentication.token", token)
 	return Store.SetToken(token)
 }
 
@@ -110,6 +118,23 @@ func WaspClient() *client.WaspClient {
 	log.Verbosef("using Wasp host %s\n", WaspAPI())
 	L1Client() // this will fill parameters.L1 with data from the L1 node
 	return client.NewWaspClient(WaspAPI()).WithToken(GetToken())
+}
+
+const WalletSchemePlain = "plain"
+const WalletSchemeStronghold = "stronghold"
+const WalletDefaultScheme = WalletSchemePlain
+
+func WalletScheme() string {
+	scheme := viper.GetString("wallet.scheme")
+
+	switch scheme {
+	case WalletSchemePlain:
+		return WalletSchemePlain
+	case WalletSchemeStronghold:
+		return WalletSchemeStronghold
+	default:
+		return WalletDefaultScheme
+	}
 }
 
 func WaspAPI() string {

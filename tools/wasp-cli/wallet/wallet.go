@@ -5,17 +5,35 @@ import (
 	"github.com/iotaledger/wasp/packages/cryptolib"
 	"github.com/iotaledger/wasp/tools/wasp-cli/config"
 	"github.com/iotaledger/wasp/tools/wasp-cli/log"
+	stronghold "github.com/lmoe/stronghold.rs/bindings/native/go"
 	"github.com/mr-tron/base58"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+	"os"
+	"path"
 )
 
 type WalletConfig struct {
 	Seed []byte
 }
 
+var addressIndex int
+
 type Wallet struct {
-	KeyPair *cryptolib.KeyPair
+	KeyPair cryptolib.VariantKeyPair
+}
+
+func (w *Wallet) PrivateKey() *cryptolib.PrivateKey {
+	kp, ok := w.KeyPair.(*cryptolib.KeyPair)
+
+	if ok {
+		return kp.GetPrivateKey()
+	}
+
+	return nil
+}
+
+func (w *Wallet) Address() iotago.Address {
+	return w.KeyPair.GetPublicKey().AsEd25519Address()
 }
 
 var initCmd = &cobra.Command{
@@ -23,21 +41,60 @@ var initCmd = &cobra.Command{
 	Short: "Initialize a new wallet",
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		seed := cryptolib.NewSeed()
-		seedString := base58.Encode(seed[:])
-		viper.Set("wallet.seed", seedString)
-		log.Check(viper.WriteConfig())
+		err := config.Store.StoreNewSeed()
 
-		log.Printf("Initialized wallet seed in %s\n", config.ConfigPath)
+		log.Check(err)
+
+		log.Printf("Initialized wallet seed, saved in key chain.\n")
 		log.Printf("\nIMPORTANT: wasp-cli is alpha phase. The seed is currently being stored " +
 			"in a plain text file which is NOT secure. Do not use this seed to store funds " +
 			"in the mainnet!\n")
-		log.Verbosef("\nSeed: %s\n", seedString)
 	},
 }
 
 func Load() *Wallet {
-	seedb58 := viper.GetString("wallet.seed")
+	if config.WalletScheme() == config.WalletSchemePlain {
+		return initializePlainWallet()
+	}
+
+	return initializeStrongholdWallet()
+}
+
+func initializeStrongholdWallet() *Wallet {
+	key, err := config.Store.StrongholdKey()
+
+	log.Check(err)
+
+	stronghold := stronghold.NewStronghold(key)
+
+	// TODO: Make configurable
+	cwd, _ := os.Getwd()
+	vaultPath := path.Join(cwd, "wasp-cli.vault")
+	//
+
+	success, err := stronghold.OpenOrCreate(vaultPath)
+
+	log.Check(err)
+
+	if !success {
+		log.Fatalf("failed to open vault with an unknown error")
+	}
+
+	_, err = stronghold.DeriveSeed(uint32(addressIndex))
+
+	log.Check(err)
+
+	keyPair := cryptolib.NewStrongholdKeyPair(stronghold, uint32(addressIndex))
+
+	return &Wallet{KeyPair: keyPair}
+}
+
+func initializePlainWallet() *Wallet {
+
+	seedb58, err := config.Store.Seed()
+
+	log.Check(err)
+
 	if seedb58 == "" {
 		log.Fatalf("call `init` first")
 	}
@@ -45,15 +102,6 @@ func Load() *Wallet {
 	log.Check(err)
 	seed := cryptolib.NewSeedFromBytes(seedBytes)
 	kp := cryptolib.NewKeyPairFromSeed(seed)
+
 	return &Wallet{KeyPair: kp}
-}
-
-var addressIndex int
-
-func (w *Wallet) PrivateKey() *cryptolib.PrivateKey {
-	return w.KeyPair.GetPrivateKey()
-}
-
-func (w *Wallet) Address() iotago.Address {
-	return w.KeyPair.GetPublicKey().AsEd25519Address()
 }

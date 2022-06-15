@@ -16,12 +16,17 @@ var addressCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		wallet := Load()
 		log.Printf("Address index %d\n", addressIndex)
-		log.Verbosef("  Private key: %s\n", wallet.KeyPair.GetPrivateKey().AsString())
+
+		if wallet.PrivateKey() != nil {
+			log.Verbosef("  Private key: %s\n", wallet.PrivateKey().AsString())
+		}
+
 		log.Verbosef("  Public key:  %s\n", wallet.KeyPair.GetPublicKey().AsString())
+
 		if parameters.L1 == nil {
 			config.L1Client() // this will fill parameters.L1 with data from the L1 node
 		}
-		log.Printf("  Address:     %s\n", wallet.Address().Bech32(parameters.L1.Protocol.Bech32HRP))
+		log.Printf("  Address:     %s\n", wallet.KeyPair.Address().Bech32(parameters.L1.Protocol.Bech32HRP))
 	},
 }
 

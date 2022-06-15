@@ -28,7 +28,7 @@ type CreateChainParams struct {
 	CommitteePubKeys  []string
 	N                 uint16
 	T                 uint16
-	OriginatorKeyPair *cryptolib.KeyPair
+	OriginatorKeyPair cryptolib.VariantKeyPair
 	Description       string
 	Textout           io.Writer
 	Prefix            string
@@ -112,7 +112,7 @@ func utxoIDsFromUtxoMap(utxoMap iotago.OutputSet) iotago.OutputIDs {
 }
 
 // CreateChainOrigin creates and confirms origin transaction of the chain and init request transaction to initialize state of it
-func CreateChainOrigin(layer1Client nodeconn.L1Client, originator *cryptolib.KeyPair, stateController iotago.Address, dscr string, initParams dict.Dict) (*iscp.ChainID, *iotago.Transaction, error) {
+func CreateChainOrigin(layer1Client nodeconn.L1Client, originator cryptolib.VariantKeyPair, stateController iotago.Address, dscr string, initParams dict.Dict) (*iscp.ChainID, *iotago.Transaction, error) {
 	originatorAddr := originator.GetPublicKey().AsEd25519Address()
 	// ----------- request owner address' outputs from the ledger
 	utxoMap, err := layer1Client.OutputMap(originatorAddr)
@@ -120,6 +120,9 @@ func CreateChainOrigin(layer1Client nodeconn.L1Client, originator *cryptolib.Key
 		return nil, nil, xerrors.Errorf("CreateChainOrigin: %w", err)
 	}
 
+	// Warning:
+	// Any change from keyPair to VariantKeyPair in parts of chain is a potential game breaker.
+	// If something doesn't work as expected in combination with Stronghold, check in these parts first.
 	// ----------- create origin transaction
 	originTx, chainID, err := transaction.NewChainOriginTransaction(
 		originator,
