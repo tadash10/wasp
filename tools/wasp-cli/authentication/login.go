@@ -46,14 +46,12 @@ var loginCmd = &cobra.Command{
 		}
 
 		client := config.WaspClient()
-		token, err := client.Login(username, password)
-		if err != nil {
-			panic(err)
-		}
 
-		if config.SetToken(token) != nil {
-			panic(err)
-		}
+		token, err := client.Login(username, password)
+		log.Check(err)
+
+		err = config.SetToken(token)
+		log.Check(err)
 
 		log.Printf("Successfully authorized")
 	},

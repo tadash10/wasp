@@ -259,6 +259,7 @@ func MakeAnchorTransaction(essence *iotago.TransactionEssence, sig iotago.Signat
 	}
 }
 
+// This function is basically 1:1 copied from iota.go/v3 and is used to be able to switch the address signer. This will be moved soon.
 func signEssence(essence *iotago.TransactionEssence, inputsCommitment []byte, signer iotago.AddressSigner, addrKeys ...iotago.AddressKeys) ([]iotago.Signature, error) {
 	// Sign produces signatures signing the essence for every given AddressKeys.
 	// The produced signatures are in the same order as the AddressKeys.

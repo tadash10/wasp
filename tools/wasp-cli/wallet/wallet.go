@@ -8,8 +8,6 @@ import (
 	stronghold "github.com/lmoe/stronghold.rs/bindings/native/go"
 	"github.com/mr-tron/base58"
 	"github.com/spf13/cobra"
-	"os"
-	"path"
 )
 
 type WalletConfig struct {
@@ -41,7 +39,13 @@ var initCmd = &cobra.Command{
 	Short: "Initialize a new wallet",
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		err := config.Store.StoreNewSeed()
+		var err error
+
+		if config.IsPlainScheme() {
+			err = config.Store.StoreNewPlainSeed()
+		} else {
+			err = config.Store.InitializeNewStronghold()
+		}
 
 		log.Check(err)
 
@@ -53,7 +57,7 @@ var initCmd = &cobra.Command{
 }
 
 func Load() *Wallet {
-	if config.WalletScheme() == config.WalletSchemePlain {
+	if config.IsPlainScheme() {
 		return initializePlainWallet()
 	}
 
@@ -61,44 +65,32 @@ func Load() *Wallet {
 }
 
 func initializeStrongholdWallet() *Wallet {
-	key, err := config.Store.StrongholdKey()
+	stronghold.SetLogLevel(5)
 
-	log.Check(err)
+	strongholdPtr, err := config.Store.OpenStronghold(uint32(addressIndex))
 
-	stronghold := stronghold.NewStronghold(key)
-
-	// TODO: Make configurable
-	cwd, _ := os.Getwd()
-	vaultPath := path.Join(cwd, "wasp-cli.vault")
-	//
-
-	success, err := stronghold.OpenOrCreate(vaultPath)
-
-	log.Check(err)
-
-	if !success {
-		log.Fatalf("failed to open vault with an unknown error")
+	if err != nil {
+		log.Fatalf("[%s] call `init` first", err)
 	}
 
-	_, err = stronghold.DeriveSeed(uint32(addressIndex))
-
-	log.Check(err)
-
-	keyPair := cryptolib.NewStrongholdKeyPair(stronghold, uint32(addressIndex))
+	keyPair := cryptolib.NewStrongholdKeyPair(strongholdPtr, uint32(addressIndex))
 
 	return &Wallet{KeyPair: keyPair}
 }
 
 func initializePlainWallet() *Wallet {
-
 	seedb58, err := config.Store.Seed()
 
 	log.Check(err)
 
-	if seedb58 == "" {
+	seedEnclave, err := seedb58.Open()
+	defer seedEnclave.Destroy()
+
+	if err != nil {
 		log.Fatalf("call `init` first")
 	}
-	seedBytes, err := base58.Decode(seedb58)
+
+	seedBytes, err := base58.Decode(seedEnclave.String())
 	log.Check(err)
 	seed := cryptolib.NewSeedFromBytes(seedBytes)
 	kp := cryptolib.NewKeyPairFromSeed(seed)

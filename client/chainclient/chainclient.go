@@ -27,13 +27,13 @@ func New(
 	layer1Client nodeconn.L1Client,
 	waspClient *client.WaspClient,
 	chainID *iscp.ChainID,
-	owner cryptolib.VariantKeyPair,
+	keyPair cryptolib.VariantKeyPair,
 ) *Client {
 	return &Client{
 		Layer1Client: layer1Client,
 		WaspClient:   waspClient,
 		ChainID:      chainID,
-		KeyPair:      owner,
+		KeyPair:      keyPair,
 		nonces:       make(map[string]uint64),
 	}
 }
@@ -169,10 +169,8 @@ func (c *Client) PostOffLedgerRequest(
 	if par.GasBudget != nil {
 		req = req.WithGasBudget(gasBudget)
 	}
-
 	req.WithNonce(par.Nonce)
 	signed := req.Sign(c.KeyPair)
-
 	return signed, c.WaspClient.PostOffLedgerRequest(c.ChainID, signed)
 }
 

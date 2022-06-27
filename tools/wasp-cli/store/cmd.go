@@ -17,5 +17,6 @@ var storeCmd = &cobra.Command{
 func Init(rootCmd *cobra.Command) {
 	rootCmd.AddCommand(storeCmd)
 
-	storeCmd.AddCommand(showCmd)
+	storeCmd.AddCommand(dumpCmd)
+	storeCmd.AddCommand(resetCmd)
 }

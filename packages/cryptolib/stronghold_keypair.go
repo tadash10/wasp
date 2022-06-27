@@ -7,26 +7,26 @@ import (
 )
 
 type StrongholdAddressSigner struct {
-	stronghold *stronghold.StrongholdNative
-	index      uint32
+	stronghold   *stronghold.StrongholdNative
+	addressIndex uint32
 }
 
-func NewStrongholdAddressSigner(strongholdInstance *stronghold.StrongholdNative, index uint32) *StrongholdAddressSigner {
+func NewStrongholdAddressSigner(strongholdInstance *stronghold.StrongholdNative, addressIndex uint32) *StrongholdAddressSigner {
 	return &StrongholdAddressSigner{
-		stronghold: strongholdInstance,
-		index:      index,
+		stronghold:   strongholdInstance,
+		addressIndex: addressIndex,
 	}
 }
 
 func (s *StrongholdAddressSigner) Sign(address iotago.Address, msg []byte) (signature iotago.Signature, err error) {
-	strongholdAddress, err := s.stronghold.GetAddress(s.index)
+	strongholdAddress, err := s.stronghold.GetAddress(s.addressIndex)
 	ed25519Address := (*iotago.Ed25519Address)(&strongholdAddress)
 
 	if !address.Equal(ed25519Address) {
 		return nil, fmt.Errorf("stronghold Address: [%v] mismatches supplied address: [%v]", ed25519Address, address)
 	}
 
-	signed, err := s.stronghold.SignForDerived(s.index, msg)
+	signed, err := s.stronghold.SignForDerived(s.addressIndex, msg)
 
 	if err != nil {
 		return nil, err
@@ -46,38 +46,38 @@ func (s *StrongholdAddressSigner) Sign(address iotago.Address, msg []byte) (sign
 }
 
 type StrongholdKeyPair struct {
-	stronghold *stronghold.StrongholdNative
-	index      uint32
+	stronghold   *stronghold.StrongholdNative
+	addressIndex uint32
 }
 
-func NewStrongholdKeyPair(strongholdInstance *stronghold.StrongholdNative, index uint32) *StrongholdKeyPair {
+func NewStrongholdKeyPair(strongholdInstance *stronghold.StrongholdNative, addressIndex uint32) *StrongholdKeyPair {
 	return &StrongholdKeyPair{
-		stronghold: strongholdInstance,
-		index:      index,
+		stronghold:   strongholdInstance,
+		addressIndex: addressIndex,
 	}
 }
 
 func (kp *StrongholdKeyPair) GetPublicKey() *PublicKey {
-	publicKeyBytes, _ := kp.stronghold.GetPublicKeyFromDerived(kp.index)
+	publicKeyBytes, _ := kp.stronghold.GetPublicKeyFromDerived(kp.addressIndex)
 	publicKey, _ := NewPublicKeyFromBytes(publicKeyBytes[:])
 
 	return publicKey
 }
 
 func (kp *StrongholdKeyPair) Address() *iotago.Ed25519Address {
-	address, _ := kp.stronghold.GetAddress(kp.index)
+	address, _ := kp.stronghold.GetAddress(kp.addressIndex)
 	return (*iotago.Ed25519Address)(&address)
 }
 
 func (kp *StrongholdKeyPair) Sign(data []byte) []byte {
-	recordPath := fmt.Sprintf("seed.%d", kp.index)
+	recordPath := fmt.Sprintf("seed.%d", kp.addressIndex)
 	signature, _ := kp.stronghold.Sign(recordPath, data)
 
 	return signature[:]
 }
 
 func (kp *StrongholdKeyPair) AsAddressSigner() iotago.AddressSigner {
-	return NewStrongholdAddressSigner(kp.stronghold, kp.index)
+	return NewStrongholdAddressSigner(kp.stronghold, kp.addressIndex)
 }
 
 func (kp *StrongholdKeyPair) AddressKeysForEd25519Address(addr *iotago.Ed25519Address) iotago.AddressKeys {

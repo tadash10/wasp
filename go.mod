@@ -3,6 +3,7 @@ module github.com/iotaledger/wasp
 go 1.18
 
 require (
+	github.com/awnumar/memguard v0.22.2
 	github.com/99designs/keyring v1.2.1
 	github.com/PuerkitoBio/goquery v1.6.1
 	github.com/anthdm/hbbft v0.0.0-20190702061856-0826ffdcf567

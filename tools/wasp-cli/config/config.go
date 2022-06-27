@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/awnumar/memguard"
 	"github.com/iotaledger/wasp/client"
 	"github.com/iotaledger/wasp/packages/nodeconn"
 	"github.com/iotaledger/wasp/packages/testutil/privtangle/privtangledefaults"
@@ -13,7 +14,7 @@ import (
 var (
 	ConfigPath        string
 	WaitForCompletion bool
-	FileStorePassword string
+	StorePassword     *memguard.Enclave
 	Store             *SecureStore
 )
 
@@ -40,12 +41,15 @@ const (
 	HostKindNanomsg = "nanomsg"
 )
 
-const FilePasswordEnvKey string = "FILE_STORE_PASSWORD"
+const StorePasswordEnvKey string = "STORE_PASSWORD"
 
 func Init(rootCmd *cobra.Command) {
 	viper.AutomaticEnv()
 
-	rootCmd.PersistentFlags().StringVarP(&FileStorePassword, "file-store-password", "p", viper.GetString(FilePasswordEnvKey), "Password to open [file] store")
+	var storePassword string
+	rootCmd.PersistentFlags().StringVarP(&storePassword, "store-password", "s", viper.GetString(StorePasswordEnvKey), "Password to open [file] store")
+	StorePassword = memguard.NewEnclave([]byte(storePassword))
+
 	rootCmd.PersistentFlags().StringVarP(&ConfigPath, "config", "c", "wasp-cli.json", "path to wasp-cli.json")
 	rootCmd.PersistentFlags().BoolVarP(&WaitForCompletion, "wait", "w", true, "wait for request completion")
 
@@ -58,7 +62,7 @@ func Read() {
 
 	viper.SetConfigFile(ConfigPath)
 	viper.SetDefault("wallet.scheme", WalletDefaultScheme)
-	log.Printf(ConfigPath)
+
 	_ = viper.ReadInConfig()
 
 	Store = NewSecureStore()
@@ -135,6 +139,10 @@ func WalletScheme() string {
 	default:
 		return WalletDefaultScheme
 	}
+}
+
+func IsPlainScheme() bool {
+	return WalletScheme() == WalletSchemePlain
 }
 
 func WaspAPI() string {
