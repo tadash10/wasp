@@ -5,7 +5,6 @@ import (
 	"github.com/iotaledger/wasp/packages/cryptolib"
 	"github.com/iotaledger/wasp/tools/wasp-cli/config"
 	"github.com/iotaledger/wasp/tools/wasp-cli/log"
-	stronghold "github.com/lmoe/stronghold.rs/bindings/native/go"
 	"github.com/mr-tron/base58"
 	"github.com/spf13/cobra"
 )
@@ -42,7 +41,7 @@ var initCmd = &cobra.Command{
 		var err error
 
 		if config.IsPlainScheme() {
-			err = config.Store.StoreNewPlainSeed()
+			err = config.Store.GenerateAndStorePlainSeed()
 		} else {
 			err = config.Store.InitializeNewStronghold()
 		}
@@ -65,10 +64,7 @@ func Load() *Wallet {
 }
 
 func initializeStrongholdWallet() *Wallet {
-	stronghold.SetLogLevel(5)
-
 	strongholdPtr, err := config.Store.OpenStronghold(uint32(addressIndex))
-
 	if err != nil {
 		log.Fatalf("[%s] call `init` first", err)
 	}

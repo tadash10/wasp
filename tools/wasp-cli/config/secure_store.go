@@ -3,6 +3,11 @@ package config
 import (
 	"encoding/base64"
 	"errors"
+	"os"
+	"path"
+	"path/filepath"
+	"syscall"
+
 	"github.com/99designs/keyring"
 	"github.com/awnumar/memguard"
 	"github.com/iotaledger/wasp/packages/cryptolib"
@@ -10,15 +15,13 @@ import (
 	stronghold "github.com/lmoe/stronghold.rs/bindings/native/go"
 	"github.com/mr-tron/base58"
 	"golang.org/x/term"
-	"os"
-	"path"
-	"path/filepath"
-	"syscall"
 )
 
-const strongholdKey = "wasp-cli.stronghold.key"
-const jwtTokenKey = "wasp-cli.auth.jwt"
-const seedKey = "wasp-cli.seed"
+const (
+	strongholdKey = "wasp-cli.stronghold.key"
+	jwtTokenKey   = "wasp-cli.auth.jwt"
+	seedKey       = "wasp-cli.seed"
+)
 
 type SecureStore struct {
 	store keyring.Keyring
@@ -32,7 +35,6 @@ func zeroKeyBuffer(data *[]byte) {
 
 func passwordCallback(m string) (string, error) {
 	storePasswordBuffer, err := StorePassword.Open()
-
 	if err != nil {
 		return "", err
 	}
@@ -53,22 +55,21 @@ func passwordCallback(m string) (string, error) {
 }
 
 func NewSecureStore() *SecureStore {
-	return &SecureStore{}
-}
+	if IsStrongholdScheme() {
+		if log.VerboseFlag {
+			stronghold.SetLogLevel(stronghold.LogLevelTrace)
+		}
 
-func (s *SecureStore) getString(key string) (string, error) {
-	token, err := s.store.Get(key)
-
-	if err != nil {
-		return "", err
+		if log.DebugFlag {
+			stronghold.SetLogLevel(stronghold.LogLevelInfo)
+		}
 	}
 
-	return string(token.Data), nil
+	return &SecureStore{}
 }
 
 func (s *SecureStore) createNewStrongholdEnvironment(strongholdPtr *stronghold.StrongholdNative, vaultPath string, addressIndex uint32) error {
 	_, err := strongholdPtr.Create(vaultPath)
-
 	if err != nil {
 		return err
 	}
@@ -104,14 +105,12 @@ func (s *SecureStore) Open() error {
 
 func (s *SecureStore) Reset() error {
 	keys, err := s.store.Keys()
-
 	if err != nil {
 		return nil
 	}
 
 	for _, key := range keys {
 		err := s.store.Remove(key)
-
 		if err != nil {
 			return err
 		}
@@ -123,7 +122,6 @@ func (s *SecureStore) Reset() error {
 func (s *SecureStore) Dump() (map[string]string, error) {
 	vaultDump := make(map[string]string)
 	keys, err := s.store.Keys()
-
 	if err != nil {
 		return vaultDump, err
 	}
@@ -135,7 +133,6 @@ func (s *SecureStore) Dump() (map[string]string, error) {
 		}
 
 		item, err := s.store.Get(key)
-
 		if err != nil {
 			return vaultDump, err
 		}
@@ -146,19 +143,28 @@ func (s *SecureStore) Dump() (map[string]string, error) {
 	return vaultDump, nil
 }
 
-func (s *SecureStore) StoreNewPlainSeed() error {
-	seed := cryptolib.NewSeed()
-	return s.SetSeed(base58.Encode(seed[:]))
+func (s *SecureStore) GenerateAndStorePlainSeed() error {
+	seed := cryptolib.NewUntypedSeed()
+	err := s.SetSeed(base58.Encode(seed[:]))
+	if err != nil {
+		return err
+	}
+
+	zeroKeyBuffer(&seed)
+
+	return nil
 }
 
 func (s *SecureStore) Seed() (*memguard.Enclave, error) {
 	seed, err := s.store.Get(seedKey)
-
 	if err != nil {
 		return nil, err
 	}
 
-	return memguard.NewEnclave(seed.Data), nil
+	seedEnclave := memguard.NewEnclave(seed.Data)
+	zeroKeyBuffer(&seed.Data)
+
+	return seedEnclave, nil
 }
 
 func (s *SecureStore) SetSeed(seed string) error {
@@ -173,7 +179,12 @@ func (s *SecureStore) SetSeed(seed string) error {
 }
 
 func (s *SecureStore) Token() (string, error) {
-	return s.getString(jwtTokenKey)
+	token, err := s.store.Get(jwtTokenKey)
+	if err != nil {
+		return "", err
+	}
+
+	return string(token.Data), nil
 }
 
 func (s *SecureStore) SetToken(token string) error {
@@ -196,23 +207,29 @@ func (s *SecureStore) InitializeNewStronghold() error {
 		}
 	}
 
-	seed := cryptolib.NewSeed()
-	key := base64.StdEncoding.EncodeToString(seed[:])
+	seed := cryptolib.NewUntypedSeed()
+	encodedSeed := make([]byte, base64.StdEncoding.EncodedLen(len(seed)))
+	base64.StdEncoding.Encode(encodedSeed, seed)
+
+	defer func() {
+		zeroKeyBuffer(&seed)
+		zeroKeyBuffer(&encodedSeed)
+	}()
+
 	item := keyring.Item{
 		Key:         strongholdKey,
-		Data:        []byte(key),
+		Data:        encodedSeed,
 		Label:       "Stronghold",
 		Description: "Key to be used to unlock stronghold",
 	}
 
 	err := s.store.Set(item)
-
 	if err != nil {
 		return err
 	}
 
 	vaultPath := s.StrongholdVaultPath()
-	strongholdPtr := stronghold.NewStronghold([]byte(key))
+	strongholdPtr := stronghold.NewStronghold(encodedSeed)
 	defer strongholdPtr.Close()
 
 	if _, err := os.Stat(s.StrongholdVaultPath()); errors.Is(err, os.ErrNotExist) {
@@ -245,20 +262,12 @@ func (s *SecureStore) StrongholdVaultPath() string {
 
 func (s *SecureStore) OpenStronghold(addressIndex uint32) (*stronghold.StrongholdNative, error) {
 	keyEnclave, err := s.StrongholdKey()
-
-	if err != nil {
-		return nil, err
-	}
-
-	key, err := keyEnclave.Open()
-	defer key.Destroy()
-
 	if err != nil {
 		return nil, err
 	}
 
 	vaultPath := s.StrongholdVaultPath()
-	strongholdPtr := stronghold.NewStronghold(key.Bytes())
+	strongholdPtr := stronghold.NewStrongholdWithEnclave(keyEnclave)
 
 	_, err = strongholdPtr.Open(vaultPath)
 

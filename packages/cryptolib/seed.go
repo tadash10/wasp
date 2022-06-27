@@ -15,8 +15,12 @@ const (
 
 type Seed [SeedSize]byte
 
+func NewUntypedSeed() []byte {
+	return hivecrypto.NewSeed().Bytes()
+}
+
 func NewSeed() Seed {
-	newSeedBytes := hivecrypto.NewSeed().Bytes()
+	newSeedBytes := NewUntypedSeed()
 	var newSeed Seed
 	copy(newSeed[:], newSeedBytes)
 	return newSeed

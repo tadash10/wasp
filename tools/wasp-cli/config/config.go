@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+
 	"github.com/awnumar/memguard"
 	"github.com/iotaledger/wasp/client"
 	"github.com/iotaledger/wasp/packages/nodeconn"
@@ -58,8 +59,6 @@ func Init(rootCmd *cobra.Command) {
 }
 
 func Read() {
-	viper.AutomaticEnv()
-
 	viper.SetConfigFile(ConfigPath)
 	viper.SetDefault("wallet.scheme", WalletDefaultScheme)
 
@@ -67,7 +66,6 @@ func Read() {
 
 	Store = NewSecureStore()
 	err := Store.Open()
-
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -124,9 +122,11 @@ func WaspClient() *client.WaspClient {
 	return client.NewWaspClient(WaspAPI()).WithToken(GetToken())
 }
 
-const WalletSchemePlain = "plain"
-const WalletSchemeStronghold = "stronghold"
-const WalletDefaultScheme = WalletSchemePlain
+const (
+	WalletSchemePlain      = "plain"
+	WalletSchemeStronghold = "stronghold"
+	WalletDefaultScheme    = WalletSchemePlain
+)
 
 func WalletScheme() string {
 	scheme := viper.GetString("wallet.scheme")
@@ -143,6 +143,10 @@ func WalletScheme() string {
 
 func IsPlainScheme() bool {
 	return WalletScheme() == WalletSchemePlain
+}
+
+func IsStrongholdScheme() bool {
+	return WalletScheme() == WalletSchemeStronghold
 }
 
 func WaspAPI() string {
