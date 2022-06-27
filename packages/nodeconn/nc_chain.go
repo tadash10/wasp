@@ -113,7 +113,7 @@ func (ncc *ncChain) PullStateOutputByID(id iotago.OutputID) {
 		ncc.log.Errorf("PullOutputByID: error getting output from response - chainID %s OutputID %s:  %s", ncc.chainID, id, err)
 		return
 	}
-	ncc.outputHandler(id, out)
+	ncc.stateOutputHandler(id, out)
 }
 
 func (ncc *ncChain) queryChainUTXOs() {
@@ -164,6 +164,11 @@ func (ncc *ncChain) queryChainUTXOs() {
 	cancelContext()
 }
 
+func shouldBeProcessed(out iotago.Output) bool {
+	// only outputs without SDRC should be processed.
+	return !out.UnlockConditionSet().HasStorageDepositReturnCondition()
+}
+
 func (ncc *ncChain) subscribeToChainOwnedUTXOs() {
 	init := true
 	for {
@@ -209,7 +214,9 @@ func (ncc *ncChain) subscribeToChainOwnedUTXOs() {
 				}
 				outID := iotago.OutputIDFromTransactionIDAndIndex(*tid, outResponse.Metadata.OutputIndex)
 				ncc.log.Debugf("received UTXO, outputID: %s", outID.ToHex())
-				ncc.outputHandler(outID, out)
+				if shouldBeProcessed(out) {
+					ncc.outputHandler(outID, out)
+				}
 			case <-ncc.nc.ctx.Done():
 				return
 			}

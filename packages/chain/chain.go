@@ -11,12 +11,12 @@ import (
 	"github.com/iotaledger/hive.go/logger"
 	iotago "github.com/iotaledger/iota.go/v3"
 	"github.com/iotaledger/iota.go/v3/nodeclient"
+	"github.com/iotaledger/trie.go/trie"
 	"github.com/iotaledger/wasp/packages/chain/mempool"
 	"github.com/iotaledger/wasp/packages/chain/messages"
 	"github.com/iotaledger/wasp/packages/cryptolib"
 	"github.com/iotaledger/wasp/packages/iscp"
 	"github.com/iotaledger/wasp/packages/iscp/coreutil"
-	"github.com/iotaledger/wasp/packages/kv/trie"
 	"github.com/iotaledger/wasp/packages/metrics/nodeconnmetrics"
 	"github.com/iotaledger/wasp/packages/peering"
 	"github.com/iotaledger/wasp/packages/state"
@@ -104,7 +104,8 @@ type NodeConnection interface {
 	RegisterChain(chainID *iscp.ChainID, stateOutputHandler, outputHandler func(iotago.OutputID, iotago.Output))
 	UnregisterChain(chainID *iscp.ChainID)
 
-	PublishTransaction(chainID *iscp.ChainID, stateIndex uint32, tx *iotago.Transaction) error
+	PublishStateTransaction(chainID *iscp.ChainID, stateIndex uint32, tx *iotago.Transaction) error
+	PublishGovernanceTransaction(chainID *iscp.ChainID, tx *iotago.Transaction) error
 	PullLatestOutput(chainID *iscp.ChainID)
 	PullTxInclusionState(chainID *iscp.ChainID, txid iotago.TransactionID)
 	PullStateOutputByID(chainID *iscp.ChainID, id *iotago.UTXOInput)
@@ -130,7 +131,8 @@ type ChainNodeConnection interface {
 	DetachFromMilestones()
 	Close()
 
-	PublishTransaction(stateIndex uint32, tx *iotago.Transaction) error
+	PublishStateTransaction(stateIndex uint32, tx *iotago.Transaction) error
+	PublishGovernanceTransaction(tx *iotago.Transaction) error
 	PullLatestOutput()
 	PullTxInclusionState(txid iotago.TransactionID)
 	PullStateOutputByID(*iotago.UTXOInput)
@@ -246,6 +248,7 @@ type PeerStatus struct {
 }
 
 type ChainTransitionEventData struct {
+	IsGovernance    bool
 	VirtualState    state.VirtualStateAccess
 	ChainOutput     *iscp.AliasOutputWithID
 	OutputTimestamp time.Time
