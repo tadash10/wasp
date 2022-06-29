@@ -14,7 +14,6 @@ require (
 	github.com/iotaledger/hive.go v0.0.0-20220506133510-ef2e113d6665
 	github.com/iotaledger/hive.go/serializer/v2 v2.0.0-20220531132324-8347a155e220
 	github.com/iotaledger/iota.go/v3 v3.0.0-20220609111244-f73231b2491a
-	github.com/iotaledger/stronghold-bindings/go v0.0.0-20220629090601-e8b8fe58547b
 	github.com/iotaledger/trie.go v0.0.0-20220619075112-88616f0415b1
 	github.com/knadh/koanf v1.4.1
 	github.com/labstack/echo/v4 v4.7.2
@@ -97,6 +96,7 @@ require (
 	github.com/huin/goupnp v1.0.2 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/iotaledger/iota.go v1.0.0 // indirect
+	github.com/iotaledger/stronghold-bindings/go v0.0.0-20220629154154-d15e396836e5 // indirect
 	github.com/ipfs/go-cid v0.0.7 // indirect
 	github.com/ipfs/go-ipfs-util v0.0.2 // indirect
 	github.com/ipfs/go-log/v2 v2.5.0 // indirect
@@ -215,7 +215,7 @@ require (
 replace (
 	github.com/anthdm/hbbft => github.com/kape1395/hbbft v0.0.0-20210824083459-b949585b7515
 	github.com/ethereum/go-ethereum => github.com/dessaya/go-ethereum v1.10.10-0.20220305060401-18f9e3da0f84
-	//github.com/iotaledger/iota.go/v3 => C:\Users\evaldas\Documents\proj\Go\src\github.com\lunfardo314\iota.go
+	//github.com/iotaledger/stronghold-bindings/go => /mnt/Dev/Coding/iota/stronghold-bindings/go
 	github.com/iotaledger/goshimmer => github.com/kape1395/goshimmer v0.7.5-0.20220126105741-2bc797667497
 	github.com/linxGnu/grocksdb => github.com/gohornet/grocksdb v1.6.38-0.20211012114404-55f425442260
 	go.dedis.ch/kyber/v3 v3.0.13 => github.com/kape1395/kyber/v3 v3.0.14-0.20210622094514-fefb81148dc3
