@@ -1,8 +1,9 @@
 package transaction
 
 import (
-	"github.com/iotaledger/wasp/packages/cryptolib"
 	"math/big"
+
+	"github.com/iotaledger/wasp/packages/cryptolib"
 
 	iotago "github.com/iotaledger/iota.go/v3"
 	"github.com/iotaledger/wasp/packages/iscp"

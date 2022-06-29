@@ -145,7 +145,7 @@ func (s *SecureStore) Dump() (map[string]string, error) {
 
 func (s *SecureStore) GenerateAndStorePlainSeed() error {
 	seed := cryptolib.NewUntypedSeed()
-	err := s.SetSeed(base58.Encode(seed[:]))
+	err := s.SetSeed(base58.Encode(seed))
 	if err != nil {
 		return err
 	}
@@ -267,6 +267,7 @@ func (s *SecureStore) OpenStronghold(addressIndex uint32) (*stronghold_go.Strong
 	}
 
 	vaultPath := s.StrongholdVaultPath()
+
 	strongholdPtr := stronghold_go.NewStrongholdWithEnclave(keyEnclave)
 
 	_, err = strongholdPtr.Open(vaultPath)

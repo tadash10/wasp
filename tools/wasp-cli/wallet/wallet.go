@@ -82,7 +82,8 @@ func initializePlainWallet() *Wallet {
 	defer seedEnclave.Destroy()
 
 	if err != nil {
-		log.Fatalf("call `init` first")
+		// nolint
+		log.Fatalf("call `init` first") // exitAfterDefer happens here, but is no issue in this place.
 	}
 
 	seedBytes, err := base58.Decode(seedEnclave.String())

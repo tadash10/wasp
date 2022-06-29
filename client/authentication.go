@@ -1,8 +1,9 @@
 package client
 
 import (
-	"github.com/iotaledger/wasp/packages/authentication/shared"
 	"net/http"
+
+	"github.com/iotaledger/wasp/packages/authentication/shared"
 )
 
 func (c *WaspClient) Login(username, password string) (string, error) {

@@ -69,7 +69,6 @@ func NewChainOriginTransaction(
 	}
 
 	sigs, err := signEssence(essence, txInputs.OrderedSet(unspentOutputs).MustCommitment(), keyPair.AsAddressSigner(), keyPair.AddressKeysForEd25519Address(walletAddr))
-
 	if err != nil {
 		return nil, nil, err
 	}

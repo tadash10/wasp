@@ -69,9 +69,7 @@ func Read() {
 
 	Store = NewSecureStore()
 	err := Store.Open()
-	if err != nil {
-		fmt.Println(err)
-	}
+	log.Check(err)
 }
 
 func L1APIAddress() string {

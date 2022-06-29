@@ -289,7 +289,6 @@ func signEssence(essence *iotago.TransactionEssence, inputsCommitment []byte, si
 	}
 
 	return sigs, nil
-
 }
 
 func CreateAndSignTx(inputs iotago.OutputIDs, inputsCommitment []byte, outputs iotago.Outputs, wallet cryptolib.VariantKeyPair, networkID uint64) (*iotago.Transaction, error) {
@@ -302,7 +301,6 @@ func CreateAndSignTx(inputs iotago.OutputIDs, inputsCommitment []byte, outputs i
 	addressKeys := wallet.AddressKeysForEd25519Address(wallet.Address())
 	signer := wallet.AsAddressSigner()
 	sigs, err := signEssence(essence, inputsCommitment, signer, addressKeys)
-
 	if err != nil {
 		return nil, err
 	}

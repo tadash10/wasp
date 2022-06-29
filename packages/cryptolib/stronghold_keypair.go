@@ -2,6 +2,7 @@ package cryptolib
 
 import (
 	"fmt"
+
 	iotago "github.com/iotaledger/iota.go/v3"
 	stronghold_go "github.com/iotaledger/stronghold-bindings/go"
 )
@@ -27,13 +28,11 @@ func (s *StrongholdAddressSigner) Sign(address iotago.Address, msg []byte) (sign
 	}
 
 	signed, err := s.stronghold.SignForDerived(s.addressIndex, msg)
-
 	if err != nil {
 		return nil, err
 	}
 
 	publicKey, err := s.stronghold.GetPublicKeyFromDerived(0)
-
 	if err != nil {
 		return nil, err
 	}
@@ -59,13 +58,11 @@ func NewStrongholdKeyPair(strongholdInstance *stronghold_go.StrongholdNative, ad
 
 func (kp *StrongholdKeyPair) GetPublicKey() *PublicKey {
 	publicKeyBytes, err := kp.stronghold.GetPublicKeyFromDerived(kp.addressIndex)
-
 	if err != nil {
 		panic(err)
 	}
 
 	publicKey, err := NewPublicKeyFromBytes(publicKeyBytes[:])
-
 	if err != nil {
 		panic(err)
 	}
@@ -75,7 +72,6 @@ func (kp *StrongholdKeyPair) GetPublicKey() *PublicKey {
 
 func (kp *StrongholdKeyPair) Address() *iotago.Ed25519Address {
 	address, err := kp.stronghold.GetAddress(kp.addressIndex)
-
 	if err != nil {
 		panic(err)
 	}
@@ -86,7 +82,6 @@ func (kp *StrongholdKeyPair) Address() *iotago.Ed25519Address {
 func (kp *StrongholdKeyPair) Sign(data []byte) []byte {
 	recordPath := fmt.Sprintf("seed.%d", kp.addressIndex)
 	signature, err := kp.stronghold.Sign(recordPath, data)
-
 	if err != nil {
 		panic(err)
 	}
