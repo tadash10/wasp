@@ -42,15 +42,15 @@ const (
 	HostKindNanomsg = "nanomsg"
 )
 
-const StorePasswordEnvKey string = "STORE_PASSWORD"
+const (
+	walletSchemeKey            = "wallet.scheme"
+	StorePasswordEnvKey string = "STORE_PASSWORD"
+)
+
+var temporaryStorePassword string
 
 func Init(rootCmd *cobra.Command) {
-	viper.AutomaticEnv()
-
-	var storePassword string
-	rootCmd.PersistentFlags().StringVarP(&storePassword, "store-password", "s", viper.GetString(StorePasswordEnvKey), "Password to open [file] store")
-	StorePassword = memguard.NewEnclave([]byte(storePassword))
-
+	rootCmd.PersistentFlags().StringVarP(&temporaryStorePassword, "store-password", "s", viper.GetString(StorePasswordEnvKey), "Password to open [file] store")
 	rootCmd.PersistentFlags().StringVarP(&ConfigPath, "config", "c", "wasp-cli.json", "path to wasp-cli.json")
 	rootCmd.PersistentFlags().BoolVarP(&WaitForCompletion, "wait", "w", true, "wait for request completion")
 
@@ -59,10 +59,13 @@ func Init(rootCmd *cobra.Command) {
 }
 
 func Read() {
+	viper.AutomaticEnv()
 	viper.SetConfigFile(ConfigPath)
-	viper.SetDefault("wallet.scheme", WalletDefaultScheme)
-
+	viper.SetDefault(walletSchemeKey, WalletDefaultScheme)
 	_ = viper.ReadInConfig()
+
+	StorePassword = memguard.NewEnclave([]byte(temporaryStorePassword))
+	temporaryStorePassword = ""
 
 	Store = NewSecureStore()
 	err := Store.Open()
@@ -129,7 +132,7 @@ const (
 )
 
 func WalletScheme() string {
-	scheme := viper.GetString("wallet.scheme")
+	scheme := viper.GetString(walletSchemeKey)
 
 	switch scheme {
 	case WalletSchemePlain:
@@ -137,7 +140,8 @@ func WalletScheme() string {
 	case WalletSchemeStronghold:
 		return WalletSchemeStronghold
 	default:
-		return WalletDefaultScheme
+		log.Fatalf("Unrecognized wallet scheme: %s", scheme)
+		return ""
 	}
 }
 

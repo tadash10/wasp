@@ -34,6 +34,6 @@ var resetCmd = &cobra.Command{
 
 		log.Check(err)
 
-		log.Printf("Store resetted!")
+		log.Printf("Store has been reset!")
 	},
 }

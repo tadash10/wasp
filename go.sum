@@ -546,6 +546,10 @@ github.com/iotaledger/iota.go v1.0.0 h1:tqm1FxJ/zOdzbrAaQ5BQpVF8dUy2eeGlSeWlNG8G
 github.com/iotaledger/iota.go v1.0.0/go.mod h1:RiKYwDyY7aCD1L0YRzHSjOsJ5mUR9yvQpvhZncNcGQI=
 github.com/iotaledger/iota.go/v3 v3.0.0-20220609111244-f73231b2491a h1:f4bRrV/w5cMFdWXeM/4eh+rBPBtSPTV857wAD7iSqRA=
 github.com/iotaledger/iota.go/v3 v3.0.0-20220609111244-f73231b2491a/go.mod h1:VaVx4OU66ulwgK9N/y0mzaS9dtAW5ESTquSWVAhCbSM=
+github.com/iotaledger/stronghold-bindings v0.0.1 h1:An8twxk1g7WXE/8k8u5+QOvj6AgQ3oNtMDJAxRWR6NE=
+github.com/iotaledger/stronghold-bindings v0.0.1/go.mod h1:7bHDNk+VAGbDK6vvpGAiVuWOHy2HOaGV9tAP2gZQA/E=
+github.com/iotaledger/stronghold-bindings/go v0.0.0-20220629090601-e8b8fe58547b h1:95tc9Q9GizISQ9g9TGld1BzZLbd1l9+vg+d4dPAJudM=
+github.com/iotaledger/stronghold-bindings/go v0.0.0-20220629090601-e8b8fe58547b/go.mod h1:K0Tz0mxg3S41dhLjzcXUBej5dsue3LPQIBT4vePxg6A=
 github.com/iotaledger/trie.go v0.0.0-20220619075112-88616f0415b1 h1:zl4vvWDl3QvYSVAotCvSu+mCWvC9gje68U/5tPrfhIg=
 github.com/iotaledger/trie.go v0.0.0-20220619075112-88616f0415b1/go.mod h1:51uMkJe4OWpB91nI8xJMyfLcCcwVN1TBhPuXsqBUh4o=
 github.com/ipfs/go-cid v0.0.2/go.mod h1:GHWU/WuQdMPmIosc4Yn1bcCT7dSeX4lBafM7iqUPQvM=

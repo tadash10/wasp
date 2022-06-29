@@ -2,16 +2,16 @@ package cryptolib
 
 import (
 	"fmt"
-	"github.com/iotaledger/iota.go/v3"
-	stronghold "github.com/lmoe/stronghold.rs/bindings/native/go"
+	iotago "github.com/iotaledger/iota.go/v3"
+	stronghold_go "github.com/iotaledger/stronghold-bindings/go"
 )
 
 type StrongholdAddressSigner struct {
-	stronghold   *stronghold.StrongholdNative
+	stronghold   *stronghold_go.StrongholdNative
 	addressIndex uint32
 }
 
-func NewStrongholdAddressSigner(strongholdInstance *stronghold.StrongholdNative, addressIndex uint32) *StrongholdAddressSigner {
+func NewStrongholdAddressSigner(strongholdInstance *stronghold_go.StrongholdNative, addressIndex uint32) *StrongholdAddressSigner {
 	return &StrongholdAddressSigner{
 		stronghold:   strongholdInstance,
 		addressIndex: addressIndex,
@@ -46,11 +46,11 @@ func (s *StrongholdAddressSigner) Sign(address iotago.Address, msg []byte) (sign
 }
 
 type StrongholdKeyPair struct {
-	stronghold   *stronghold.StrongholdNative
+	stronghold   *stronghold_go.StrongholdNative
 	addressIndex uint32
 }
 
-func NewStrongholdKeyPair(strongholdInstance *stronghold.StrongholdNative, addressIndex uint32) *StrongholdKeyPair {
+func NewStrongholdKeyPair(strongholdInstance *stronghold_go.StrongholdNative, addressIndex uint32) *StrongholdKeyPair {
 	return &StrongholdKeyPair{
 		stronghold:   strongholdInstance,
 		addressIndex: addressIndex,
@@ -58,20 +58,38 @@ func NewStrongholdKeyPair(strongholdInstance *stronghold.StrongholdNative, addre
 }
 
 func (kp *StrongholdKeyPair) GetPublicKey() *PublicKey {
-	publicKeyBytes, _ := kp.stronghold.GetPublicKeyFromDerived(kp.addressIndex)
-	publicKey, _ := NewPublicKeyFromBytes(publicKeyBytes[:])
+	publicKeyBytes, err := kp.stronghold.GetPublicKeyFromDerived(kp.addressIndex)
+
+	if err != nil {
+		panic(err)
+	}
+
+	publicKey, err := NewPublicKeyFromBytes(publicKeyBytes[:])
+
+	if err != nil {
+		panic(err)
+	}
 
 	return publicKey
 }
 
 func (kp *StrongholdKeyPair) Address() *iotago.Ed25519Address {
-	address, _ := kp.stronghold.GetAddress(kp.addressIndex)
+	address, err := kp.stronghold.GetAddress(kp.addressIndex)
+
+	if err != nil {
+		panic(err)
+	}
+
 	return (*iotago.Ed25519Address)(&address)
 }
 
 func (kp *StrongholdKeyPair) Sign(data []byte) []byte {
 	recordPath := fmt.Sprintf("seed.%d", kp.addressIndex)
-	signature, _ := kp.stronghold.Sign(recordPath, data)
+	signature, err := kp.stronghold.Sign(recordPath, data)
+
+	if err != nil {
+		panic(err)
+	}
 
 	return signature[:]
 }

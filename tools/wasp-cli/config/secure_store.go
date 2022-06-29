@@ -10,9 +10,9 @@ import (
 
 	"github.com/99designs/keyring"
 	"github.com/awnumar/memguard"
+	stronghold_go "github.com/iotaledger/stronghold-bindings/go"
 	"github.com/iotaledger/wasp/packages/cryptolib"
 	"github.com/iotaledger/wasp/tools/wasp-cli/log"
-	stronghold "github.com/lmoe/stronghold.rs/bindings/native/go"
 	"github.com/mr-tron/base58"
 	"golang.org/x/term"
 )
@@ -57,18 +57,18 @@ func passwordCallback(m string) (string, error) {
 func NewSecureStore() *SecureStore {
 	if IsStrongholdScheme() {
 		if log.VerboseFlag {
-			stronghold.SetLogLevel(stronghold.LogLevelTrace)
+			stronghold_go.SetLogLevel(stronghold_go.LogLevelTrace)
 		}
 
 		if log.DebugFlag {
-			stronghold.SetLogLevel(stronghold.LogLevelInfo)
+			stronghold_go.SetLogLevel(stronghold_go.LogLevelInfo)
 		}
 	}
 
 	return &SecureStore{}
 }
 
-func (s *SecureStore) createNewStrongholdEnvironment(strongholdPtr *stronghold.StrongholdNative, vaultPath string, addressIndex uint32) error {
+func (s *SecureStore) createNewStrongholdEnvironment(strongholdPtr *stronghold_go.StrongholdNative, vaultPath string, addressIndex uint32) error {
 	_, err := strongholdPtr.Create(vaultPath)
 	if err != nil {
 		return err
@@ -229,7 +229,7 @@ func (s *SecureStore) InitializeNewStronghold() error {
 	}
 
 	vaultPath := s.StrongholdVaultPath()
-	strongholdPtr := stronghold.NewStronghold(encodedSeed)
+	strongholdPtr := stronghold_go.NewStronghold(encodedSeed)
 	defer strongholdPtr.Close()
 
 	if _, err := os.Stat(s.StrongholdVaultPath()); errors.Is(err, os.ErrNotExist) {
@@ -260,14 +260,14 @@ func (s *SecureStore) StrongholdVaultPath() string {
 	return path.Join(cwd, "wasp-cli.vault")
 }
 
-func (s *SecureStore) OpenStronghold(addressIndex uint32) (*stronghold.StrongholdNative, error) {
+func (s *SecureStore) OpenStronghold(addressIndex uint32) (*stronghold_go.StrongholdNative, error) {
 	keyEnclave, err := s.StrongholdKey()
 	if err != nil {
 		return nil, err
 	}
 
 	vaultPath := s.StrongholdVaultPath()
-	strongholdPtr := stronghold.NewStrongholdWithEnclave(keyEnclave)
+	strongholdPtr := stronghold_go.NewStrongholdWithEnclave(keyEnclave)
 
 	_, err = strongholdPtr.Open(vaultPath)
 
