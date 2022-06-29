@@ -34,18 +34,11 @@ func zeroKeyBuffer(data *[]byte) {
 }
 
 func passwordCallback(m string) (string, error) {
-	storePasswordBuffer, err := StorePassword.Open()
-	if err != nil {
-		return "", err
+	if len(StorePassword) > 0 {
+		return StorePassword, nil
 	}
 
-	defer storePasswordBuffer.Destroy()
-
-	if len(storePasswordBuffer.String()) > 0 {
-		return storePasswordBuffer.String(), nil
-	}
-
-	log.Printf("No password set (args[--file-password/-p], env[%v])'\n", StorePasswordEnvKey)
+	log.Printf("No password set (args[--file-password/-s], env[%v])'\n", StorePasswordEnvKey)
 	log.Printf("Enter password manually: ")
 
 	passwordBytes, err := term.ReadPassword(int(syscall.Stdin)) //nolint:unconvert // int cast is needed for windows
@@ -93,9 +86,10 @@ func (s *SecureStore) Open() error {
 	var err error
 
 	dir, _ := filepath.Abs(ConfigPath)
+
 	s.store, err = keyring.Open(keyring.Config{
 		ServiceName:          "IOTA_Foundation",
-		FileDir:              filepath.Dir(dir),
+		FileDir:              filepath.Join(filepath.Dir(dir), "secret_store"),
 		KeychainPasswordFunc: passwordCallback,
 		FilePasswordFunc:     passwordCallback,
 	})
@@ -243,8 +237,7 @@ func (s *SecureStore) InitializeNewStronghold() error {
 
 func (s *SecureStore) StrongholdKey() (*memguard.Enclave, error) {
 	item, err := s.store.Get(strongholdKey)
-
-	if errors.Is(err, keyring.ErrKeyNotFound) {
+	if err != nil {
 		return nil, err
 	}
 
