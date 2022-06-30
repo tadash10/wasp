@@ -83,9 +83,11 @@ func (s *SecureStore) createNewStrongholdEnvironment(strongholdPtr *stronghold_g
 }
 
 func (s *SecureStore) Open() error {
-	var err error
+	dir, err := filepath.Abs(ConfigPath)
 
-	dir, _ := filepath.Abs(ConfigPath)
+	if err != nil {
+		return err
+	}
 
 	s.store, err = keyring.Open(keyring.Config{
 		ServiceName:          "IOTA_Foundation",
