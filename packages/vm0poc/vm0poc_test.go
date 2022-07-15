@@ -28,7 +28,7 @@ func TestBasic(t *testing.T) {
 		require.NoError(t, err)
 
 		require.True(t, ch.RawState().MustHas(CounterStateVar))
-		v := ch.GetRaw([]byte(CounterStateVar))
+		v := ch.RawState().MustGet(CounterStateVar)
 		val, err := util.Int64From8Bytes(v)
 		require.NoError(t, err)
 		require.EqualValues(t, int64(10), val)
@@ -44,7 +44,7 @@ func TestBasic(t *testing.T) {
 			_, err := ch.PostRequestOffLedger(req, nil)
 			require.NoError(t, err)
 			require.True(t, ch.RawState().MustHas(CounterStateVar))
-			v := ch.GetRaw([]byte(CounterStateVar))
+			v := ch.RawState().MustGet(CounterStateVar)
 			val, err := util.Int64From8Bytes(v)
 			require.NoError(t, err)
 			require.EqualValues(t, int64(i+1), val)
@@ -61,7 +61,7 @@ func TestBasic(t *testing.T) {
 		require.NoError(t, err)
 
 		require.True(t, ch.RawState().MustHas(CounterStateVar))
-		v := ch.GetRaw([]byte(CounterStateVar))
+		v := ch.RawState().MustGet(CounterStateVar)
 		val, err := util.Int64From8Bytes(v)
 		require.NoError(t, err)
 		require.EqualValues(t, int64(10), val)
@@ -71,7 +71,7 @@ func TestBasic(t *testing.T) {
 		require.NoError(t, err)
 
 		require.True(t, ch.RawState().MustHas(CounterStateVar))
-		v = ch.GetRaw([]byte(CounterStateVar))
+		v = ch.RawState().MustGet(CounterStateVar)
 		val, err = util.Int64From8Bytes(v)
 		require.NoError(t, err)
 		require.EqualValues(t, int64(5), val)
