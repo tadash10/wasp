@@ -36,7 +36,7 @@ version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
  "wasm-bindgen-test",
- "wasmlib",
+ "wasmlib 0.1.0",
  "wee_alloc",
 ]
 
@@ -46,7 +46,7 @@ version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
  "wasm-bindgen-test",
- "wasmlib",
+ "wasmlib 0.1.0",
  "wee_alloc",
 ]
 
@@ -56,7 +56,7 @@ version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
  "wasm-bindgen-test",
- "wasmlib",
+ "wasmlib 0.1.0",
  "wee_alloc",
 ]
 
@@ -66,7 +66,7 @@ version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
  "wasm-bindgen-test",
- "wasmlib",
+ "wasmlib 0.1.0",
  "wee_alloc",
 ]
 
@@ -76,7 +76,17 @@ version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
  "wasm-bindgen-test",
- "wasmlib",
+ "wasmlib 0.1.0",
+ "wee_alloc",
+]
+
+[[package]]
+name = "executiontime"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "wasm-bindgen-test",
+ "wasmlib 0.1.0 (git+https://github.com/iotaledger/wasp?branch=develop)",
  "wee_alloc",
 ]
 
@@ -86,7 +96,7 @@ version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
  "wasm-bindgen-test",
- "wasmlib",
+ "wasmlib 0.1.0",
  "wee_alloc",
 ]
 
@@ -96,7 +106,7 @@ version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
  "wasm-bindgen-test",
- "wasmlib",
+ "wasmlib 0.1.0",
  "wee_alloc",
 ]
 
@@ -106,7 +116,7 @@ version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
  "wasm-bindgen-test",
- "wasmlib",
+ "wasmlib 0.1.0",
  "wee_alloc",
 ]
 
@@ -116,7 +126,7 @@ version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
  "wasm-bindgen-test",
- "wasmlib",
+ "wasmlib 0.1.0",
  "wee_alloc",
 ]
 
@@ -151,6 +161,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "memory"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "wasm-bindgen-test",
+ "wasmlib 0.1.0 (git+https://github.com/iotaledger/wasp?branch=develop)",
+ "wee_alloc",
+]
+
+[[package]]
 name = "memory_units"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -180,7 +200,7 @@ version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
  "wasm-bindgen-test",
- "wasmlib",
+ "wasmlib 0.1.0",
  "wee_alloc",
 ]
 
@@ -189,6 +209,16 @@ name = "scoped-tls"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ea6a9290e3c9cf0f18145ef7ffa62d68ee0bf5fcd651017e586dc7fd5da448c2"
+
+[[package]]
+name = "storage"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "wasm-bindgen-test",
+ "wasmlib 0.1.0 (git+https://github.com/iotaledger/wasp?branch=develop)",
+ "wee_alloc",
+]
 
 [[package]]
 name = "syn"
@@ -207,7 +237,7 @@ version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
  "wasm-bindgen-test",
- "wasmlib",
+ "wasmlib 0.1.0",
  "wee_alloc",
 ]
 
@@ -217,7 +247,7 @@ version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
  "wasm-bindgen-test",
- "wasmlib",
+ "wasmlib 0.1.0",
  "wee_alloc",
 ]
 
@@ -227,7 +257,7 @@ version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
  "wasm-bindgen-test",
- "wasmlib",
+ "wasmlib 0.1.0",
  "wee_alloc",
 ]
 
@@ -237,7 +267,7 @@ version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
  "wasm-bindgen-test",
- "wasmlib",
+ "wasmlib 0.1.0",
  "wee_alloc",
 ]
 
@@ -340,6 +370,15 @@ dependencies = [
 [[package]]
 name = "wasmlib"
 version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "wasmlib"
+version = "0.1.0"
+source = "git+https://github.com/iotaledger/wasp?branch=develop#0c2d3b23e194470bbc2afd22cde10acc88b723b2"
 dependencies = [
  "console_error_panic_hook",
  "wasm-bindgen",

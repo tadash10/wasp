@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/iotaledger/wasp/packages/iscp"
-	"github.com/iotaledger/wasp/packages/iscp/coreutil"
+	"github.com/iotaledger/wasp/packages/isc"
+	"github.com/iotaledger/wasp/packages/isc/coreutil"
 	"github.com/iotaledger/wasp/packages/kv/codec"
 	"github.com/iotaledger/wasp/packages/kv/dict"
 	"github.com/iotaledger/wasp/packages/solo"
@@ -20,7 +20,7 @@ func TestGovernance1(t *testing.T) {
 	corecontracts.PrintWellKnownHnames()
 
 	t.Run("empty list of allowed rotation addresses", func(t *testing.T) {
-		env := solo.New(t, &solo.InitOptions{AutoAdjustDustDeposit: true})
+		env := solo.New(t, &solo.InitOptions{AutoAdjustStorageDeposit: true})
 		chain := env.NewChain(nil, "chain1")
 		// defer chain.Log.Sync()
 
@@ -28,7 +28,7 @@ func TestGovernance1(t *testing.T) {
 		require.EqualValues(t, 0, len(lst))
 	})
 	t.Run("add/remove allowed rotation addresses", func(t *testing.T) {
-		env := solo.New(t, &solo.InitOptions{AutoAdjustDustDeposit: true})
+		env := solo.New(t, &solo.InitOptions{AutoAdjustStorageDeposit: true})
 		chain := env.NewChain(nil, "chain1")
 		// defer chain.Log.Sync()
 
@@ -70,7 +70,7 @@ func TestRotate(t *testing.T) {
 	corecontracts.PrintWellKnownHnames()
 
 	t.Run("not allowed address", func(t *testing.T) {
-		env := solo.New(t, &solo.InitOptions{AutoAdjustDustDeposit: true})
+		env := solo.New(t, &solo.InitOptions{AutoAdjustStorageDeposit: true})
 		chain := env.NewChain(nil, "chain1")
 		// defer chain.Log.Sync()
 
@@ -80,7 +80,7 @@ func TestRotate(t *testing.T) {
 		strings.Contains(err.Error(), "checkRotateCommitteeRequest: address is not allowed as next state address")
 	})
 	t.Run("unauthorized", func(t *testing.T) {
-		env := solo.New(t, &solo.InitOptions{AutoAdjustDustDeposit: true})
+		env := solo.New(t, &solo.InitOptions{AutoAdjustStorageDeposit: true})
 		chain := env.NewChain(nil, "chain1")
 		// defer chain.Log.Sync()
 
@@ -90,7 +90,7 @@ func TestRotate(t *testing.T) {
 		strings.Contains(err.Error(), "checkRotateStateControllerRequest: unauthorized access")
 	})
 	t.Run("rotate success", func(t *testing.T) {
-		env := solo.New(t, &solo.InitOptions{AutoAdjustDustDeposit: true})
+		env := solo.New(t, &solo.InitOptions{AutoAdjustStorageDeposit: true})
 		chain := env.NewChain(nil, "chain1")
 		// defer chain.Log.Sync()
 
@@ -115,7 +115,7 @@ func TestRotate(t *testing.T) {
 }
 
 func TestAccessNodes(t *testing.T) {
-	env := solo.New(t, &solo.InitOptions{AutoAdjustDustDeposit: true})
+	env := solo.New(t, &solo.InitOptions{AutoAdjustStorageDeposit: true})
 	node1KP, _ := env.NewKeyPairWithFunds()
 	node1OwnerKP, node1OwnerAddr := env.NewKeyPairWithFunds()
 	chainKP, _ := env.NewKeyPairWithFunds()
@@ -219,21 +219,21 @@ func TestDisallowMaintenanceDeadlock(t *testing.T) {
 	stopMaintenceFunc := coreutil.Func("stopMaintenance")
 	ownerContract := coreutil.NewContract("chain owner contract", "N/A")
 	ownerContractProcessor := ownerContract.Processor(nil,
-		claimOwnershipFunc.WithHandler(func(ctx iscp.Sandbox) dict.Dict {
+		claimOwnershipFunc.WithHandler(func(ctx isc.Sandbox) dict.Dict {
 			return ctx.Call(governance.Contract.Hname(), governance.FuncClaimChainOwnership.Hname(), nil, nil)
 		}),
-		startMaintenceFunc.WithHandler(func(ctx iscp.Sandbox) dict.Dict {
+		startMaintenceFunc.WithHandler(func(ctx isc.Sandbox) dict.Dict {
 			return ctx.Call(governance.Contract.Hname(), governance.FuncStartMaintenance.Hname(), nil, nil)
 		}),
-		stopMaintenceFunc.WithHandler(func(ctx iscp.Sandbox) dict.Dict {
+		stopMaintenceFunc.WithHandler(func(ctx isc.Sandbox) dict.Dict {
 			return ctx.Call(governance.Contract.Hname(), governance.FuncStopMaintenance.Hname(), nil, nil)
 		}),
 	)
-	env := solo.New(t, &solo.InitOptions{AutoAdjustDustDeposit: true}).
+	env := solo.New(t, &solo.InitOptions{AutoAdjustStorageDeposit: true}).
 		WithNativeContract(ownerContractProcessor)
 	ch := env.NewChain(nil, "chain")
 
-	ownerContractAgentID := iscp.NewContractAgentID(ch.ChainID, ownerContract.Hname())
+	ownerContractAgentID := isc.NewContractAgentID(ch.ChainID, ownerContract.Hname())
 	userWallet, _ := env.NewKeyPairWithFunds()
 
 	err := ch.DeployContract(nil, ownerContract.Name, ownerContract.ProgramHash)
