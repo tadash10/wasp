@@ -5,8 +5,8 @@ import (
 
 	iotago "github.com/iotaledger/iota.go/v3"
 	"github.com/iotaledger/trie.go/trie"
-	"github.com/iotaledger/wasp/packages/iscp"
-	"github.com/iotaledger/wasp/packages/iscp/coreutil"
+	"github.com/iotaledger/wasp/packages/isc"
+	"github.com/iotaledger/wasp/packages/isc/coreutil"
 	"github.com/iotaledger/wasp/packages/parameters"
 	"github.com/iotaledger/wasp/packages/state"
 	"github.com/iotaledger/wasp/packages/util"
@@ -52,7 +52,7 @@ func (r VMRunner) Run(task *vm.VMTask) {
 	)
 	if err != nil {
 		switch e := err.(type) {
-		case *iscp.VMError:
+		case *isc.VMError:
 			task.VMError = e
 		case error:
 			// May require a different error type here?
@@ -95,7 +95,7 @@ func runTask(task *vm.VMTask) {
 }
 
 // getParam parses the request
-func (vmctx *VMContext) getParam(req iscp.Request) (int64, string) {
+func (vmctx *VMContext) getParam(req isc.Request) (int64, string) {
 	if !req.IsOffLedger() {
 		return 0, "only off-ledger requests are accepted"
 	}
