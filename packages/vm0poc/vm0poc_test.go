@@ -11,7 +11,7 @@ import (
 func TestBasic(t *testing.T) {
 	t.Run("create chain", func(t *testing.T) {
 		env := solo.New(t)
-		ch := env.NewChain(nil, "ch1", solo.InitChainOptions{
+		ch, _, _ := env.NewChainExt(nil, 0, "ch1", solo.InitChainOptions{
 			VMRunner:         NewVMRunner(),
 			BypassStardustVM: true,
 		})
@@ -19,7 +19,7 @@ func TestBasic(t *testing.T) {
 	})
 	t.Run("send 1 request", func(t *testing.T) {
 		env := solo.New(t)
-		ch := env.NewChain(nil, "ch1", solo.InitChainOptions{
+		ch, _, _ := env.NewChainExt(nil, 0, "ch1", solo.InitChainOptions{
 			VMRunner:         NewVMRunner(),
 			BypassStardustVM: true,
 		})
@@ -35,7 +35,7 @@ func TestBasic(t *testing.T) {
 	})
 	t.Run("send 5 requests", func(t *testing.T) {
 		env := solo.New(t)
-		ch := env.NewChain(nil, "ch1", solo.InitChainOptions{
+		ch, _, _ := env.NewChainExt(nil, 0, "ch1", solo.InitChainOptions{
 			VMRunner:         NewVMRunner(),
 			BypassStardustVM: true,
 		})
@@ -52,7 +52,7 @@ func TestBasic(t *testing.T) {
 	})
 	t.Run("send 2 requests", func(t *testing.T) {
 		env := solo.New(t)
-		ch := env.NewChain(nil, "ch1", solo.InitChainOptions{
+		ch, _, _ := env.NewChainExt(nil, 0, "ch1", solo.InitChainOptions{
 			VMRunner:         NewVMRunner(),
 			BypassStardustVM: true,
 		})
@@ -75,6 +75,5 @@ func TestBasic(t *testing.T) {
 		val, err = util.Int64From8Bytes(v)
 		require.NoError(t, err)
 		require.EqualValues(t, int64(5), val)
-
 	})
 }
