@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/iotaledger/wasp/packages/evm/evmtypes"
+	"github.com/iotaledger/wasp/packages/evm/evmutil"
 	"github.com/iotaledger/wasp/packages/isc"
 	"github.com/iotaledger/wasp/packages/isc/assert"
 	"github.com/iotaledger/wasp/packages/kv/buffered"
@@ -59,11 +60,18 @@ func (bctx *blockContext) mintBlock() {
 
 	// failed txs were not stored in the pending block -- store them now
 	for i := range bctx.txs {
-		if bctx.receipts[i].Status != types.ReceiptStatusSuccessful {
-			bctx.receipts[i].TransactionIndex = txCount
-			bctx.emu.BlockchainDB().AddTransaction(bctx.txs[i], bctx.receipts[i])
-			txCount++
+		if bctx.receipts[i].Status == types.ReceiptStatusSuccessful {
+			continue
 		}
+		bctx.receipts[i].TransactionIndex = txCount
+		bctx.emu.BlockchainDB().AddTransaction(bctx.txs[i], bctx.receipts[i])
+
+		// we must also increment the nonce manually since the original request was reverted
+		sender := evmutil.MustGetSender(bctx.txs[i])
+		nonce := bctx.emu.StateDB().GetNonce(sender)
+		bctx.emu.StateDB().SetNonce(sender, nonce+1)
+
+		txCount++
 	}
 
 	bctx.emu.MintBlock()
@@ -73,7 +81,7 @@ func createEmulator(ctx isc.Sandbox) *emulator.EVMEmulator {
 	return emulator.NewEVMEmulator(
 		evmStateSubrealm(ctx.State()),
 		timestamp(ctx),
-		newISCContract(ctx),
+		newMagicContract(ctx),
 		getBalanceFunc(ctx),
 	)
 }
@@ -82,7 +90,7 @@ func createEmulatorR(ctx isc.SandboxView) *emulator.EVMEmulator {
 	return emulator.NewEVMEmulator(
 		evmStateSubrealm(buffered.NewBufferedKVStoreAccess(ctx.State())),
 		timestamp(ctx),
-		newISCContractView(ctx),
+		newMagicContractView(ctx),
 		getBalanceFunc(ctx),
 	)
 }
