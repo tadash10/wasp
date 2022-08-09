@@ -8,21 +8,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func newChain(t *testing.T) *solo.Chain {
+	env := solo.New(t)
+	ch, _, _ := env.NewChainExt(nil, 0, "ch1", solo.InitChainOptions{
+		VMRunner:         NewVMRunner(),
+		BypassStardustVM: true,
+	})
+	return ch
+}
+
 func TestBasic(t *testing.T) {
 	t.Run("create chain", func(t *testing.T) {
-		env := solo.New(t)
-		ch, _, _ := env.NewChainExt(nil, 0, "ch1", solo.InitChainOptions{
-			VMRunner:         NewVMRunner(),
-			BypassStardustVM: true,
-		})
+		ch := newChain(t)
 		require.False(t, ch.RawState().MustHas(CounterStateVar))
 	})
 	t.Run("send 1 request", func(t *testing.T) {
-		env := solo.New(t)
-		ch, _, _ := env.NewChainExt(nil, 0, "ch1", solo.InitChainOptions{
-			VMRunner:         NewVMRunner(),
-			BypassStardustVM: true,
-		})
+		ch := newChain(t)
 		req := solo.NewCallParams("dummy", "dummy", ParamDeltaInt64, int64(10))
 		_, err := ch.PostRequestOffLedger(req, nil)
 		require.NoError(t, err)
@@ -34,11 +35,7 @@ func TestBasic(t *testing.T) {
 		require.EqualValues(t, int64(10), val)
 	})
 	t.Run("send 5 requests", func(t *testing.T) {
-		env := solo.New(t)
-		ch, _, _ := env.NewChainExt(nil, 0, "ch1", solo.InitChainOptions{
-			VMRunner:         NewVMRunner(),
-			BypassStardustVM: true,
-		})
+		ch := newChain(t)
 		req := solo.NewCallParams("dummy", "dummy", ParamDeltaInt64, int64(1))
 		for i := 0; i < 5; i++ {
 			_, err := ch.PostRequestOffLedger(req, nil)
@@ -51,11 +48,7 @@ func TestBasic(t *testing.T) {
 		}
 	})
 	t.Run("send 2 requests", func(t *testing.T) {
-		env := solo.New(t)
-		ch, _, _ := env.NewChainExt(nil, 0, "ch1", solo.InitChainOptions{
-			VMRunner:         NewVMRunner(),
-			BypassStardustVM: true,
-		})
+		ch := newChain(t)
 		req := solo.NewCallParams("dummy", "dummy", ParamDeltaInt64, int64(10))
 		_, err := ch.PostRequestOffLedger(req, nil)
 		require.NoError(t, err)
