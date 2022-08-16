@@ -7,7 +7,6 @@ import (
 	"github.com/iotaledger/wasp/packages/cryptolib"
 
 	iotago "github.com/iotaledger/iota.go/v3"
-	"github.com/iotaledger/wasp/packages/iscp"
 	"github.com/iotaledger/wasp/packages/isc"
 	"github.com/iotaledger/wasp/packages/parameters"
 	"github.com/iotaledger/wasp/packages/util"
@@ -28,7 +27,7 @@ type NewTransferTransactionParams struct {
 	FungibleTokens                  *isc.FungibleTokens
 	SendOptions                     isc.SendOptions
 	SenderAddress                   iotago.Address
-	SenderKeyPair                   *cryptolib.KeyPair
+	SenderKeyPair                   cryptolib.VariantKeyPair
 	TargetAddress                   iotago.Address
 	UnspentOutputs                  iotago.OutputSet
 	UnspentOutputIDs                iotago.OutputIDs
@@ -80,13 +79,6 @@ func NewTransferTransaction(params NewTransferTransactionParams) (*iotago.Transa
 	inputsCommitment := inputIDs.OrderedSet(params.UnspentOutputs).MustCommitment()
 
 	return CreateAndSignTx(inputIDs, inputsCommitment, outputs, params.SenderKeyPair, parameters.L1().Protocol.NetworkID())
-	SenderKeyPair                cryptolib.VariantKeyPair
-	SenderAddress                iotago.Address // might be different from the senderKP address (when sending as NFT or alias)
-	UnspentOutputs               iotago.OutputSet
-	UnspentOutputIDs             iotago.OutputIDs
-	Request                      *iscp.RequestParameters
-	NFT                          *iscp.NFT
-	DisableAutoAdjustDustDeposit bool // if true, the minimal dust deposit won't be adjusted automatically
 }
 
 // NewRequestTransaction creates a transaction including one or more requests to a chain.

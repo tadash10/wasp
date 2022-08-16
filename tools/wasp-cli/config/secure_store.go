@@ -84,7 +84,6 @@ func (s *SecureStore) createNewStrongholdEnvironment(strongholdPtr *stronghold_g
 
 func (s *SecureStore) Open() error {
 	dir, err := filepath.Abs(ConfigPath)
-
 	if err != nil {
 		return err
 	}

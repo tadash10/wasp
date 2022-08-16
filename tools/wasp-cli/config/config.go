@@ -111,9 +111,11 @@ func Read() {
 	viper.SetDefault(walletSchemeKey, WalletDefaultScheme)
 	_ = viper.ReadInConfig()
 
-	Store = NewSecureStore()
-	err := Store.Open()
-	log.Check(err)
+	if IsKeyChainRequired() {
+		Store = NewSecureStore()
+		err := Store.Open()
+		log.Check(err)
+	}
 }
 
 func L1APIAddress() string {
@@ -169,8 +171,9 @@ func WaspClient(i ...int) *client.WaspClient {
 
 const (
 	WalletSchemePlain      = "plain"
+	WalletSchemeKeyChain   = "keychain"
 	WalletSchemeStronghold = "stronghold"
-	WalletDefaultScheme    = WalletSchemePlain
+	WalletDefaultScheme    = WalletSchemeKeyChain
 )
 
 func WalletScheme() string {
@@ -179,6 +182,8 @@ func WalletScheme() string {
 	switch scheme {
 	case WalletSchemePlain:
 		return WalletSchemePlain
+	case WalletSchemeKeyChain:
+		return WalletSchemeKeyChain
 	case WalletSchemeStronghold:
 		return WalletSchemeStronghold
 	default:
@@ -187,15 +192,27 @@ func WalletScheme() string {
 	}
 }
 
+func IsKeyChainRequired() bool {
+	return WalletScheme() != WalletSchemePlain
+}
+
 func IsPlainScheme() bool {
 	return WalletScheme() == WalletSchemePlain
+}
+
+func IsKeyChainScheme() bool {
+	return WalletScheme() == WalletSchemeKeyChain
 }
 
 func IsStrongholdScheme() bool {
 	return WalletScheme() == WalletSchemeStronghold
 }
 
-func WaspAPI() string {
+func WaspAPI(i ...int) string {
+	index := 0
+	if len(i) > 0 {
+		index = i[0]
+	}
 	r := viper.GetString("wasp." + HostKindAPI)
 	if r != "" {
 		return r

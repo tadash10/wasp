@@ -17,7 +17,7 @@ import (
 type Client struct {
 	Layer1Client nodeconn.L1Client
 	WaspClient   *client.WaspClient
-	ChainID      *iscp.ChainID
+	ChainID      *isc.ChainID
 	KeyPair      cryptolib.VariantKeyPair
 	nonces       map[string]uint64
 }
@@ -26,7 +26,7 @@ type Client struct {
 func New(
 	layer1Client nodeconn.L1Client,
 	waspClient *client.WaspClient,
-	chainID *iscp.ChainID,
+	chainID *isc.ChainID,
 	keyPair cryptolib.VariantKeyPair,
 ) *Client {
 	return &Client{

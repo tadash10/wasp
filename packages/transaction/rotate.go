@@ -13,7 +13,7 @@ func NewRotateChainStateControllerTx(
 	newStateController iotago.Address,
 	chainOutputID iotago.OutputID,
 	chainOutput iotago.Output,
-	kp *cryptolib.KeyPair,
+	kp cryptolib.VariantKeyPair,
 ) (*iotago.Transaction, error) {
 	if o, ok := chainOutput.(*iotago.AliasOutput); !ok || o.AliasID != chainID {
 		return nil, fmt.Errorf("provided output is not the correct one. expected ChainID: %s", chainID.ToAddress().Bech32(parameters.L1().Protocol.Bech32HRP))

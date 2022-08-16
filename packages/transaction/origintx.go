@@ -91,7 +91,7 @@ func NewChainOriginTransaction(
 // The signer must be the same that created the origin transaction.
 func NewRootInitRequestTransaction(
 	keyPair cryptolib.VariantKeyPair,
-	chainID *iscp.ChainID,
+	chainID *isc.ChainID,
 	description string,
 	unspentOutputs iotago.OutputSet,
 	unspentOutputIDs iotago.OutputIDs,
