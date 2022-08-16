@@ -170,10 +170,9 @@ func WaspClient(i ...int) *client.WaspClient {
 }
 
 const (
-	WalletSchemePlain      = "plain"
-	WalletSchemeKeyChain   = "keychain"
-	WalletSchemeStronghold = "stronghold"
-	WalletDefaultScheme    = WalletSchemeKeyChain
+	WalletSchemePlain    = "plain"
+	WalletSchemeKeyChain = "keychain"
+	WalletDefaultScheme  = WalletSchemeKeyChain
 )
 
 func WalletScheme() string {
@@ -184,8 +183,6 @@ func WalletScheme() string {
 		return WalletSchemePlain
 	case WalletSchemeKeyChain:
 		return WalletSchemeKeyChain
-	case WalletSchemeStronghold:
-		return WalletSchemeStronghold
 	default:
 		log.Fatalf("Unrecognized wallet scheme: %s", scheme)
 		return ""
@@ -202,10 +199,6 @@ func IsPlainScheme() bool {
 
 func IsKeyChainScheme() bool {
 	return WalletScheme() == WalletSchemeKeyChain
-}
-
-func IsStrongholdScheme() bool {
-	return WalletScheme() == WalletSchemeStronghold
 }
 
 func WaspAPI(i ...int) string {

@@ -47,9 +47,6 @@ var initCmd = &cobra.Command{
 		} else if config.IsKeyChainScheme() {
 			err = config.Store.GenerateAndStorePlainSeed()
 			log.Printf("Initialized wallet seed, saved in key chain [IOTA_Foundation].\n")
-		} else {
-			err = config.Store.InitializeNewStronghold()
-			log.Printf("Initialized wallet seed and Stronghold snapshot. Secret is saved inside key chain [IOTA_Foundation].\n")
 		}
 
 		log.Check(err)
@@ -68,18 +65,8 @@ func Load() *Wallet {
 		return loadKeyChainWallet()
 	}
 
-	return loadStrongholdWallet()
-}
-
-func loadStrongholdWallet() *Wallet {
-	strongholdPtr, err := config.Store.OpenStronghold(uint32(addressIndex))
-	if err != nil {
-		log.Fatalf("[%s] call `init` first", err)
-	}
-
-	keyPair := cryptolib.NewStrongholdKeyPair(strongholdPtr, uint32(addressIndex))
-
-	return &Wallet{KeyPair: keyPair}
+	log.Fatalf("Invalid wallet scheme")
+	return nil
 }
 
 func loadPlainWallet() *Wallet {

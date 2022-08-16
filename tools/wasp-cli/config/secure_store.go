@@ -1,16 +1,11 @@
 package config
 
 import (
-	"encoding/base64"
-	"errors"
-	"os"
-	"path"
 	"path/filepath"
 	"syscall"
 
 	"github.com/99designs/keyring"
 	"github.com/awnumar/memguard"
-	stronghold_go "github.com/iotaledger/stronghold-bindings/go"
 	"github.com/iotaledger/wasp/packages/cryptolib"
 	"github.com/iotaledger/wasp/tools/wasp-cli/log"
 	"github.com/mr-tron/base58"
@@ -48,38 +43,7 @@ func passwordCallback(m string) (string, error) {
 }
 
 func NewSecureStore() *SecureStore {
-	if IsStrongholdScheme() {
-		if log.VerboseFlag {
-			stronghold_go.SetLogLevel(stronghold_go.LogLevelTrace)
-		}
-
-		if log.DebugFlag {
-			stronghold_go.SetLogLevel(stronghold_go.LogLevelInfo)
-		}
-	}
-
 	return &SecureStore{}
-}
-
-func (s *SecureStore) createNewStrongholdEnvironment(strongholdPtr *stronghold_go.StrongholdNative, vaultPath string, addressIndex uint32) error {
-	_, err := strongholdPtr.Create(vaultPath)
-	if err != nil {
-		return err
-	}
-
-	_, err = strongholdPtr.GenerateSeed()
-
-	if err != nil {
-		return err
-	}
-
-	_, err = strongholdPtr.DeriveSeed(addressIndex)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (s *SecureStore) Open() error {
@@ -191,90 +155,4 @@ func (s *SecureStore) SetToken(token string) error {
 	}
 
 	return s.store.Set(item)
-}
-
-func (s *SecureStore) InitializeNewStronghold() error {
-	if _, err := os.Stat(s.StrongholdVaultPath()); err == nil {
-		err = os.Remove(s.StrongholdVaultPath())
-
-		if err != nil {
-			return err
-		}
-	}
-
-	seed := cryptolib.NewUntypedSeed()
-	encodedSeed := make([]byte, base64.StdEncoding.EncodedLen(len(seed)))
-	base64.StdEncoding.Encode(encodedSeed, seed)
-
-	defer func() {
-		zeroKeyBuffer(&seed)
-		zeroKeyBuffer(&encodedSeed)
-	}()
-
-	item := keyring.Item{
-		Key:         strongholdKey,
-		Data:        encodedSeed,
-		Label:       "Stronghold",
-		Description: "Key to be used to unlock stronghold",
-	}
-
-	err := s.store.Set(item)
-	if err != nil {
-		return err
-	}
-
-	vaultPath := s.StrongholdVaultPath()
-	strongholdPtr := stronghold_go.NewStronghold(encodedSeed)
-	defer strongholdPtr.Close()
-
-	if _, err := os.Stat(s.StrongholdVaultPath()); errors.Is(err, os.ErrNotExist) {
-		err = s.createNewStrongholdEnvironment(strongholdPtr, vaultPath, 0)
-
-		return err
-	}
-
-	return nil
-}
-
-func (s *SecureStore) StrongholdKey() (*memguard.Enclave, error) {
-	item, err := s.store.Get(strongholdKey)
-	if err != nil {
-		return nil, err
-	}
-
-	enclave := memguard.NewEnclave(item.Data)
-
-	zeroKeyBuffer(&item.Data)
-
-	return enclave, nil
-}
-
-func (s *SecureStore) StrongholdVaultPath() string {
-	cwd, _ := os.Getwd()
-	return path.Join(cwd, "wasp-cli.vault")
-}
-
-func (s *SecureStore) OpenStronghold(addressIndex uint32) (*stronghold_go.StrongholdNative, error) {
-	keyEnclave, err := s.StrongholdKey()
-	if err != nil {
-		return nil, err
-	}
-
-	vaultPath := s.StrongholdVaultPath()
-
-	strongholdPtr := stronghold_go.NewStrongholdWithEnclave(keyEnclave)
-
-	_, err = strongholdPtr.Open(vaultPath)
-
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = strongholdPtr.DeriveSeed(addressIndex)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return strongholdPtr, err
 }
