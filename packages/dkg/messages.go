@@ -17,7 +17,7 @@ import (
 
 	iotago "github.com/iotaledger/iota.go/v3"
 	"github.com/iotaledger/wasp/packages/cryptolib"
-	"github.com/iotaledger/wasp/packages/iscp"
+	"github.com/iotaledger/wasp/packages/isc"
 	"github.com/iotaledger/wasp/packages/peering"
 	"github.com/iotaledger/wasp/packages/util"
 	"go.dedis.ch/kyber/v3"
@@ -33,39 +33,39 @@ const (
 	//
 	// NOTE: initiatorInitMsgType must be unique across all the uses of peering package,
 	// because it is used to start new chain, thus peeringID is not used for message recognition.
-	initiatorInitMsgType byte = peering.FirstUserMsgCode + 184 // Initiator -> Peer: init new DKG, reply with initiatorStatusMsgType.
+	initiatorInitMsgType = peering.FirstUserMsgCode + 184 // Initiator -> Peer: init new DKG, reply with initiatorStatusMsgType.
 	//
 	// Initiator <-> Peer proc communication.
-	initiatorMsgBase         byte = peering.FirstUserMsgCode + 4 // 4 to align with round numbers.
-	initiatorStepMsgType     byte = initiatorMsgBase + 1         // Initiator -> Peer: start new step, reply with initiatorStatusMsgType.
-	initiatorDoneMsgType     byte = initiatorMsgBase + 2         // Initiator -> Peer: finalize the proc, reply with initiatorStatusMsgType.
-	initiatorPubShareMsgType byte = initiatorMsgBase + 3         // Peer -> Initiator; if keys are already generated, that's response to initiatorStepMsgType.
-	initiatorStatusMsgType   byte = initiatorMsgBase + 4         // Peer -> Initiator; in the case of error or void ack.
-	initiatorMsgFree         byte = initiatorMsgBase + 5         // Just a placeholder for first unallocated message type.
+	initiatorMsgBase         = peering.FirstUserMsgCode + 4 // 4 to align with round numbers.
+	initiatorStepMsgType     = initiatorMsgBase + 1         // Initiator -> Peer: start new step, reply with initiatorStatusMsgType.
+	initiatorDoneMsgType     = initiatorMsgBase + 2         // Initiator -> Peer: finalize the proc, reply with initiatorStatusMsgType.
+	initiatorPubShareMsgType = initiatorMsgBase + 3         // Peer -> Initiator; if keys are already generated, that's response to initiatorStepMsgType.
+	initiatorStatusMsgType   = initiatorMsgBase + 4         // Peer -> Initiator; in the case of error or void ack.
+	initiatorMsgFree         = initiatorMsgBase + 5         // Just a placeholder for first unallocated message type.
 	//
 	// Peer <-> Peer communication for the Rabin protocol.
-	rabinMsgFrom                   byte = initiatorMsgFree
-	rabinDealMsgType               byte = rabinMsgFrom + 0
-	rabinResponseMsgType           byte = rabinMsgFrom + 1
-	rabinJustificationMsgType      byte = rabinMsgFrom + 2
-	rabinSecretCommitsMsgType      byte = rabinMsgFrom + 3
-	rabinComplaintCommitsMsgType   byte = rabinMsgFrom + 4
-	rabinReconstructCommitsMsgType byte = rabinMsgFrom + 5
-	rabinMsgTill                   byte = rabinMsgFrom + 6 // Just a placeholder for first unallocated message type.
+	rabinMsgFrom                   = initiatorMsgFree
+	rabinDealMsgType               = rabinMsgFrom + 0
+	rabinResponseMsgType           = rabinMsgFrom + 1
+	rabinJustificationMsgType      = rabinMsgFrom + 2
+	rabinSecretCommitsMsgType      = rabinMsgFrom + 3
+	rabinComplaintCommitsMsgType   = rabinMsgFrom + 4
+	rabinReconstructCommitsMsgType = rabinMsgFrom + 5
+	rabinMsgTill                   = rabinMsgFrom + 6 // Just a placeholder for first unallocated message type.
 	//
 	// Peer <-> Peer communication for the Rabin protocol, messages repeatedly sent
 	// in response to duplicated messages from other peers. They should be treated
 	// in a special way to avoid infinite message loops.
-	rabinEchoFrom byte = rabinMsgTill
-	rabinEchoTill byte = rabinEchoFrom + (rabinMsgTill - rabinMsgFrom)
+	rabinEchoFrom = rabinMsgTill
+	rabinEchoTill = rabinEchoFrom + (rabinMsgTill - rabinMsgFrom)
 	//
 	// The Peer<->Peer communication includes a corresponding KeySetType.
 	// We encode it to the MsgType. Messages are recognized as follows:
 	//  [rabinMsgFrom,        rabinEchoTill)       --> KeySetType = Ed25519
 	//  [rabinKeySetTypeFrom, rabinKeySetTypeTill) --> KeySetType = BLS
 	// NOTE: There is not enough bits to encode KeySetType and Echo flags as bits.
-	rabinKeySetTypeFrom byte = rabinEchoTill
-	rabinKeySetTypeTill byte = rabinKeySetTypeFrom + (rabinEchoTill - rabinMsgFrom)
+	rabinKeySetTypeFrom = rabinEchoTill
+	rabinKeySetTypeTill = rabinKeySetTypeFrom + (rabinEchoTill - rabinMsgFrom)
 )
 
 type keySetType byte
@@ -220,12 +220,10 @@ func readInitiatorMsg(peerMessage *peering.PeerMessageData, edSuite, blsSuite ky
 	}
 }
 
-//
 // initiatorInitMsg
 //
 // This is a message sent by the initiator to all the peers to
 // initiate the DKG process.
-//
 type initiatorInitMsg struct {
 	step         byte
 	dkgRef       string // Some unique string to identify duplicate initialization.
@@ -357,13 +355,11 @@ func (m *initiatorInitMsg) IsResponse() bool {
 	return false
 }
 
-//
 // initiatorStepMsg
 //
 // This is a message used to synchronize the DKG procedure by
 // ensuring the lock-step, as required by the DKG algorithm
 // assumptions (Rabin as well as Pedersen).
-//
 type initiatorStepMsg struct {
 	step byte
 }
@@ -405,9 +401,7 @@ func (m *initiatorStepMsg) IsResponse() bool {
 	return false
 }
 
-//
 // initiatorDoneMsg
-//
 type initiatorDoneMsg struct {
 	step         byte
 	edPubShares  []kyber.Point
@@ -502,13 +496,11 @@ func (m *initiatorDoneMsg) IsResponse() bool {
 	return false
 }
 
-//
 // initiatorPubShareMsg
 //
 // This is a message responded to the initiator
 // by the DKG peers returning the shared public key.
 // All the nodes must return the same public key.
-//
 type initiatorPubShareMsg struct {
 	step            byte
 	sharedAddress   iotago.Address
@@ -540,7 +532,7 @@ func (m *initiatorPubShareMsg) Write(w io.Writer) error {
 	if err = util.WriteByte(w, m.step); err != nil {
 		return err
 	}
-	if err = util.WriteBytes16(w, iscp.BytesFromAddress(m.sharedAddress)); err != nil {
+	if err = util.WriteBytes16(w, isc.BytesFromAddress(m.sharedAddress)); err != nil {
 		return err
 	}
 	{ // Ed25519 part.
@@ -580,7 +572,7 @@ func (m *initiatorPubShareMsg) Read(r io.Reader) error {
 	if sharedAddressBin, err = util.ReadBytes16(r); err != nil {
 		return err
 	}
-	if sharedAddress, _, err = iscp.AddressFromBytes(sharedAddressBin); err != nil {
+	if sharedAddress, _, err = isc.AddressFromBytes(sharedAddressBin); err != nil {
 		return err
 	}
 	m.sharedAddress = sharedAddress
@@ -628,9 +620,7 @@ func (m *initiatorPubShareMsg) IsResponse() bool {
 	return true
 }
 
-//
 // initiatorStatusMsg
-//
 type initiatorStatusMsg struct {
 	step  byte
 	error error
@@ -689,9 +679,7 @@ func (m *initiatorStatusMsg) IsResponse() bool {
 	return true
 }
 
-//
-//	rabin_dkg.Deal
-//
+// rabin_dkg.Deal
 type rabinDealMsg struct {
 	step byte
 	deal *rabin_dkg.Deal
@@ -764,9 +752,7 @@ func (m *rabinDealMsg) fromBytes(buf []byte, edSuite kyber.Group) error {
 	return m.Read(rdr)
 }
 
-//
-//	rabin_dkg.Response
-//
+// rabin_dkg.Response
 type rabinResponseMsg struct {
 	step      byte
 	responses []*rabin_dkg.Response
@@ -854,9 +840,7 @@ func (m *rabinResponseMsg) fromBytes(buf []byte) error {
 	return m.Read(rdr)
 }
 
-//
-//	rabin_dkg.Justification
-//
+// rabin_dkg.Justification
 type rabinJustificationMsg struct {
 	step           byte
 	justifications []*rabin_dkg.Justification
@@ -946,9 +930,7 @@ func (m *rabinJustificationMsg) fromBytes(buf []byte, blsSuite kyber.Group) erro
 	return m.Read(rdr)
 }
 
-//
-//	rabin_dkg.SecretCommits
-//
+// rabin_dkg.SecretCommits
 type rabinSecretCommitsMsg struct {
 	step          byte
 	secretCommits *rabin_dkg.SecretCommits
@@ -1040,9 +1022,7 @@ func (m *rabinSecretCommitsMsg) fromBytes(buf []byte, blsSuite kyber.Group) erro
 	return m.Read(rdr)
 }
 
-//
-//	rabin_dkg.ComplaintCommits
-//
+// rabin_dkg.ComplaintCommits
 type rabinComplaintCommitsMsg struct {
 	step             byte
 	complaintCommits []*rabin_dkg.ComplaintCommits
@@ -1122,9 +1102,7 @@ func (m *rabinComplaintCommitsMsg) fromBytes(buf []byte, blsSuite kyber.Group) e
 	return m.Read(rdr)
 }
 
-//
-//	rabin_dkg.ReconstructCommits
-//
+// rabin_dkg.ReconstructCommits
 type rabinReconstructCommitsMsg struct {
 	step               byte
 	reconstructCommits []*rabin_dkg.ReconstructCommits
@@ -1336,11 +1314,10 @@ func (m multiKeySetMsgs) AddBLSMsgs(msgs map[uint16]*peering.PeerMessageData, st
 	}
 }
 
-//
-// type PriShare struct {
-// 	I int          // Index of the private share
-// 	V kyber.Scalar // Value of the private share
-// }
+//	type PriShare struct {
+//		I int          // Index of the private share
+//		V kyber.Scalar // Value of the private share
+//	}
 //
 //nolint:gocritic
 func writePriShare(w io.Writer, val *share.PriShare) error {
@@ -1375,14 +1352,13 @@ func readPriShare(r io.Reader, val **share.PriShare) error {
 	return util.ReadMarshaled(r, (*val).V)
 }
 
-//
-// type rabin_vvs.Deal struct {
-// 	SessionID []byte			// Unique session identifier for this protocol run
-// 	SecShare *share.PriShare	// Private share generated by the dealer
-// 	RndShare *share.PriShare	// Random share generated by the dealer
-// 	T uint32					// Threshold used for this secret sharing run
-// 	Commitments []kyber.Point	// Commitments are the coefficients used to verify the shares against
-// }
+//	type rabin_vvs.Deal struct {
+//		SessionID []byte			// Unique session identifier for this protocol run
+//		SecShare *share.PriShare	// Private share generated by the dealer
+//		RndShare *share.PriShare	// Random share generated by the dealer
+//		T uint32					// Threshold used for this secret sharing run
+//		Commitments []kyber.Point	// Commitments are the coefficients used to verify the shares against
+//	}
 //
 //nolint:gocritic
 func writeVssDeal(w io.Writer, d *rabin_vss.Deal) error {

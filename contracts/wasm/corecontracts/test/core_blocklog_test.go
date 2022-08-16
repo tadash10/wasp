@@ -64,8 +64,8 @@ func TestGetBlockInfo(t *testing.T) {
 		assert.Equal(t, expectBlockInfo.PreviousL1Commitment, blockinfo.PreviousL1Commitment)
 		assert.Equal(t, expectBlockInfo.L1Commitment, blockinfo.L1Commitment)
 		assert.Equal(t, expectBlockInfo.AnchorTransactionID, blockinfo.AnchorTransactionID)
-		assert.Equal(t, expectBlockInfo.TotalIotasInL2Accounts, blockinfo.TotalIotasInL2Accounts)
-		assert.Equal(t, expectBlockInfo.TotalDustDeposit, blockinfo.TotalDustDeposit)
+		assert.Equal(t, expectBlockInfo.TotalBaseTokensInL2Accounts, blockinfo.TotalBaseTokensInL2Accounts)
+		assert.Equal(t, expectBlockInfo.TotalStorageDeposit, blockinfo.TotalStorageDeposit)
 		assert.Equal(t, expectBlockInfo.GasBurned, blockinfo.GasBurned)
 		assert.Equal(t, expectBlockInfo.GasFeeCharged, blockinfo.GasFeeCharged)
 	}
@@ -75,8 +75,9 @@ func TestGetLatestBlockInfo(t *testing.T) {
 	ctx := setupBlockLog(t)
 	require.NoError(t, ctx.Err)
 
-	expectBlockInfo := ctx.Chain.GetLatestBlockInfo()
-	f := coreblocklog.ScFuncs.GetLatestBlockInfo(ctx)
+	expectBlockInfo, err := ctx.Chain.GetBlockInfo()
+	require.NoError(t, err)
+	f := coreblocklog.ScFuncs.GetBlockInfo(ctx)
 	f.Func.Call()
 	require.NoError(t, ctx.Err)
 	index := f.Results.BlockIndex().Value()
@@ -92,8 +93,8 @@ func TestGetLatestBlockInfo(t *testing.T) {
 	assert.Equal(t, expectBlockInfo.PreviousL1Commitment, blockinfo.PreviousL1Commitment)
 	assert.Equal(t, expectBlockInfo.L1Commitment, blockinfo.L1Commitment)
 	assert.Equal(t, expectBlockInfo.AnchorTransactionID, blockinfo.AnchorTransactionID)
-	assert.Equal(t, expectBlockInfo.TotalIotasInL2Accounts, blockinfo.TotalIotasInL2Accounts)
-	assert.Equal(t, expectBlockInfo.TotalDustDeposit, blockinfo.TotalDustDeposit)
+	assert.Equal(t, expectBlockInfo.TotalBaseTokensInL2Accounts, blockinfo.TotalBaseTokensInL2Accounts)
+	assert.Equal(t, expectBlockInfo.TotalStorageDeposit, blockinfo.TotalStorageDeposit)
 	assert.Equal(t, expectBlockInfo.GasBurned, blockinfo.GasBurned)
 	assert.Equal(t, expectBlockInfo.GasFeeCharged, blockinfo.GasFeeCharged)
 }

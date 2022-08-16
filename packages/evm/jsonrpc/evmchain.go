@@ -15,6 +15,7 @@ import (
 	"github.com/iotaledger/wasp/packages/evm/evmutil"
 	"github.com/iotaledger/wasp/packages/kv/codec"
 	"github.com/iotaledger/wasp/packages/kv/dict"
+	"github.com/iotaledger/wasp/packages/parameters"
 	"github.com/iotaledger/wasp/packages/util"
 	"github.com/iotaledger/wasp/packages/vm/core/errors"
 	"github.com/iotaledger/wasp/packages/vm/core/evm"
@@ -75,12 +76,25 @@ func (e *EVMChain) SendTransaction(tx *types.Transaction) error {
 	if tx.ChainId().Uint64() != uint64(e.chainID) {
 		return fmt.Errorf("Chain ID mismatch")
 	}
+	sender, err := types.Sender(e.Signer(), tx)
+	if err != nil {
+		return fmt.Errorf("invalid transaction: %w", err)
+	}
+
+	expectedNonce, err := e.TransactionCount(sender)
+	if err != nil {
+		return fmt.Errorf("invalid transaction: %w", err)
+	}
+	if tx.Nonce() != expectedNonce {
+		return fmt.Errorf("invalid transaction nonce: got %d, want %d", tx.Nonce(), expectedNonce)
+	}
+
 	return e.backend.EVMSendTransaction(tx)
 }
 
-func paramsWithOptionalBlockNumber(blockNumber *big.Int, parameters dict.Dict) dict.Dict {
-	ret := parameters
-	if parameters == nil {
+func paramsWithOptionalBlockNumber(blockNumber *big.Int, params dict.Dict) dict.Dict {
+	ret := params
+	if params == nil {
 		ret = dict.Dict{}
 	}
 	if blockNumber != nil {
@@ -89,12 +103,12 @@ func paramsWithOptionalBlockNumber(blockNumber *big.Int, parameters dict.Dict) d
 	return ret
 }
 
-func paramsWithOptionalBlockNumberOrHash(blockNumberOrHash rpc.BlockNumberOrHash, parameters dict.Dict) dict.Dict {
+func paramsWithOptionalBlockNumberOrHash(blockNumberOrHash rpc.BlockNumberOrHash, params dict.Dict) dict.Dict {
 	if blockNumber, ok := blockNumberOrHash.Number(); ok {
-		return paramsWithOptionalBlockNumber(parseBlockNumber(blockNumber), parameters)
+		return paramsWithOptionalBlockNumber(parseBlockNumber(blockNumber), params)
 	}
-	ret := parameters
-	if parameters == nil {
+	ret := params
+	if params == nil {
 		ret = dict.Dict{}
 	}
 	blockHash, _ := blockNumberOrHash.Hash()
@@ -223,10 +237,14 @@ func (e *EVMChain) TransactionReceipt(txHash common.Hash) (*types.Receipt, error
 	return receipt, nil
 }
 
-func (e *EVMChain) TransactionCount(address common.Address, blockNumberOrHash rpc.BlockNumberOrHash) (uint64, error) {
-	ret, err := e.backend.ISCCallView(evm.Contract.Name, evm.FuncGetNonce.Name, paramsWithOptionalBlockNumberOrHash(blockNumberOrHash, dict.Dict{
+func (e *EVMChain) TransactionCount(address common.Address, blockNumberOrHash ...rpc.BlockNumberOrHash) (uint64, error) {
+	params := dict.Dict{
 		evm.FieldAddress: address.Bytes(),
-	}))
+	}
+	if len(blockNumberOrHash) > 0 {
+		params = paramsWithOptionalBlockNumberOrHash(blockNumberOrHash[0], params)
+	}
+	ret, err := e.backend.ISCCallView(evm.Contract.Name, evm.FuncGetNonce.Name, params)
 	if err != nil {
 		return 0, err
 	}
@@ -284,4 +302,8 @@ func (e *EVMChain) Logs(q *ethereum.FilterQuery) ([]*types.Log, error) {
 		return nil, err
 	}
 	return evmtypes.DecodeLogs(ret.MustGet(evm.FieldResult))
+}
+
+func (e *EVMChain) BaseToken() *parameters.BaseToken {
+	return e.backend.BaseToken()
 }

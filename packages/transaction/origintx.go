@@ -3,7 +3,7 @@ package transaction
 import (
 	iotago "github.com/iotaledger/iota.go/v3"
 	"github.com/iotaledger/wasp/packages/cryptolib"
-	"github.com/iotaledger/wasp/packages/iscp"
+	"github.com/iotaledger/wasp/packages/isc"
 	"github.com/iotaledger/wasp/packages/kv/codec"
 	"github.com/iotaledger/wasp/packages/kv/dict"
 	"github.com/iotaledger/wasp/packages/parameters"
@@ -21,7 +21,7 @@ func NewChainOriginTransaction(
 	deposit uint64,
 	unspentOutputs iotago.OutputSet,
 	unspentOutputIDs iotago.OutputIDs,
-) (*iotago.Transaction, *iscp.ChainID, error) {
+) (*iotago.Transaction, *isc.ChainID, error) {
 	if len(unspentOutputs) != len(unspentOutputIDs) {
 		panic("mismatched lengths of outputs and inputs slices")
 	}
@@ -42,9 +42,9 @@ func NewChainOriginTransaction(
 		},
 	}
 	{
-		aliasDustDeposit := NewStorageDepositEstimate().AnchorOutput
-		if aliasOutput.Amount < aliasDustDeposit {
-			aliasOutput.Amount = aliasDustDeposit
+		aliasStorageDeposit := NewStorageDepositEstimate().AnchorOutput
+		if aliasOutput.Amount < aliasStorageDeposit {
+			aliasOutput.Amount = aliasStorageDeposit
 		}
 	}
 	txInputs, remainderOutput, err := computeInputsAndRemainder(
@@ -63,7 +63,7 @@ func NewChainOriginTransaction(
 		outputs = append(outputs, remainderOutput)
 	}
 	essence := &iotago.TransactionEssence{
-		NetworkID: parameters.L1.Protocol.NetworkID(),
+		NetworkID: parameters.L1().Protocol.NetworkID(),
 		Inputs:    txInputs.UTXOInputs(),
 		Outputs:   outputs,
 	}
@@ -80,7 +80,7 @@ func NewChainOriginTransaction(
 	if err != nil {
 		return nil, nil, err
 	}
-	chainID := iscp.ChainIDFromAliasID(iotago.AliasIDFromOutputID(iotago.OutputIDFromTransactionIDAndIndex(txid, 0)))
+	chainID := isc.ChainIDFromAliasID(iotago.AliasIDFromOutputID(iotago.OutputIDFromTransactionIDAndIndex(txid, 0)))
 	return tx, &chainID, nil
 }
 
@@ -98,8 +98,8 @@ func NewRootInitRequestTransaction(
 	initParams ...dict.Dict,
 ) (*iotago.Transaction, error) {
 	params := dict.Dict{
-		root.ParamDustDepositAssumptionsBin: NewStorageDepositEstimate().Bytes(),
-		governance.ParamDescription:         codec.EncodeString(description),
+		root.ParamStorageDepositAssumptionsBin: NewStorageDepositEstimate().Bytes(),
+		governance.ParamDescription:            codec.EncodeString(description),
 	}
 	for _, p := range initParams {
 		params.Extend(p)
@@ -109,11 +109,11 @@ func NewRootInitRequestTransaction(
 		SenderAddress:    keyPair.Address(),
 		UnspentOutputs:   unspentOutputs,
 		UnspentOutputIDs: unspentOutputIDs,
-		Request: &iscp.RequestParameters{
+		Request: &isc.RequestParameters{
 			TargetAddress: chainID.AsAddress(),
-			Metadata: &iscp.SendMetadata{
+			Metadata: &isc.SendMetadata{
 				TargetContract: root.Contract.Hname(),
-				EntryPoint:     iscp.EntryPointInit,
+				EntryPoint:     isc.EntryPointInit,
 				GasBudget:      0, // TODO. Probably we need minimum fixed budget for core contract calls. 0 for init call
 				Params:         params,
 			},

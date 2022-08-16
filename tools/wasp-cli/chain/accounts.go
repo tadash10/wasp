@@ -5,19 +5,15 @@ import (
 
 	iotago "github.com/iotaledger/iota.go/v3"
 	"github.com/iotaledger/wasp/client/chainclient"
-	"github.com/iotaledger/wasp/packages/iscp"
+	"github.com/iotaledger/wasp/packages/isc"
 	"github.com/iotaledger/wasp/packages/kv/codec"
 	"github.com/iotaledger/wasp/packages/kv/dict"
-	"github.com/iotaledger/wasp/packages/parameters"
 	"github.com/iotaledger/wasp/packages/vm/core/accounts"
-	"github.com/iotaledger/wasp/tools/wasp-cli/config"
 	"github.com/iotaledger/wasp/tools/wasp-cli/log"
 	"github.com/iotaledger/wasp/tools/wasp-cli/util"
 	"github.com/iotaledger/wasp/tools/wasp-cli/wallet"
 	"github.com/spf13/cobra"
 )
-
-const iotaTokenStr = "iota"
 
 var listAccountsCmd = &cobra.Command{
 	Use:   "list-accounts",
@@ -47,16 +43,12 @@ var balanceCmd = &cobra.Command{
 	Short: "Show the L2 balance of the given account",
 	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		if parameters.L1 == nil {
-			config.L1Client() // this will fill parameters.L1 with data from the L1 node
-		}
-
-		var agentID iscp.AgentID
+		var agentID isc.AgentID
 		if len(args) == 0 {
-			agentID = iscp.NewAgentID(wallet.Load().Address())
+			agentID = isc.NewAgentID(wallet.Load().Address())
 		} else {
 			var err error
-			agentID, err = iscp.NewAgentIDFromString(args[0])
+			agentID, err = isc.NewAgentIDFromString(args[0])
 			log.Check(err)
 		}
 
@@ -69,8 +61,8 @@ var balanceCmd = &cobra.Command{
 		rows := make([][]string, len(ret))
 		i := 0
 		for k, v := range ret {
-			tokenStr := iotaTokenStr
-			if !iscp.IsIota([]byte(k)) {
+			tokenStr := util.BaseTokenStr
+			if !isc.IsBaseToken([]byte(k)) {
 				tokenStr = codec.MustDecodeNativeTokenID([]byte(k)).String()
 			}
 			bal, err := codec.DecodeBigIntAbs(v)
@@ -88,13 +80,9 @@ var depositCmd = &cobra.Command{
 	Short: "Deposit L1 funds into the given (default: your) L2 account",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		if parameters.L1 == nil {
-			config.L1Client() // this will fill parameters.L1 with data from the L1 node
-		}
-
 		if strings.Contains(args[0], ":") {
 			// deposit to own agentID
-			tokens := parseFungibleTokens(args)
+			tokens := util.ParseFungibleTokens(args)
 			util.WithSCTransaction(GetCurrentChainID(), func() (*iotago.Transaction, error) {
 				return SCClient(accounts.Contract.Hname()).PostRequest(
 					accounts.FuncDeposit.Name,
@@ -105,9 +93,9 @@ var depositCmd = &cobra.Command{
 			})
 		} else {
 			// deposit to some other agentID
-			agentID, err := iscp.NewAgentIDFromString(args[0])
+			agentID, err := isc.NewAgentIDFromString(args[0])
 			log.Check(err)
-			tokens := parseFungibleTokens(args[1:])
+			tokens := util.ParseFungibleTokens(args[1:])
 			util.WithSCTransaction(GetCurrentChainID(), func() (*iotago.Transaction, error) {
 				return SCClient(accounts.Contract.Hname()).PostRequest(
 					accounts.FuncTransferAllowanceTo.Name,
@@ -117,7 +105,7 @@ var depositCmd = &cobra.Command{
 							accounts.ParamForceOpenAccount: codec.EncodeBool(true),
 						},
 						Transfer:  tokens,
-						Allowance: iscp.NewAllowanceFungibleTokens(tokens),
+						Allowance: isc.NewAllowanceFungibleTokens(tokens),
 					},
 				)
 			})

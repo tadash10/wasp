@@ -32,9 +32,9 @@ type L1Client interface {
 	// sends a tx, waits for confirmation
 	PostTx(tx *iotago.Transaction, timeout ...time.Duration) error
 	// returns the outputs owned by a given address
-	OutputMap(myAddress iotago.Address, timeout ...time.Duration) (map[iotago.OutputID]iotago.Output, error)
+	OutputMap(myAddress iotago.Address, timeout ...time.Duration) (iotago.OutputSet, error)
 	// output
-	GetAliasOutput(aliasID iotago.AliasID, timeout ...time.Duration) (iotago.Output, error)
+	GetAliasOutput(aliasID iotago.AliasID, timeout ...time.Duration) (iotago.OutputID, iotago.Output, error)
 	// used to query the health endpoint of the node
 	Health(timeout ...time.Duration) (bool, error)
 }
@@ -48,11 +48,11 @@ func NewL1Client(config L1Config, log *logger.Logger, timeout ...time.Duration) 
 const defaultTimeout = 1 * time.Minute
 
 // OutputMap implements L1Connection
-func (nc *nodeConn) OutputMap(myAddress iotago.Address, timeout ...time.Duration) (map[iotago.OutputID]iotago.Output, error) {
+func (nc *nodeConn) OutputMap(myAddress iotago.Address, timeout ...time.Duration) (iotago.OutputSet, error) {
 	ctxWithTimeout, cancelContext := newCtx(nc.ctx, timeout...)
 	defer cancelContext()
 
-	bech32Addr := myAddress.Bech32(parameters.L1.Protocol.Bech32HRP)
+	bech32Addr := myAddress.Bech32(parameters.L1().Protocol.Bech32HRP)
 	queries := []nodeclient.IndexerQuery{
 		&nodeclient.BasicOutputsQuery{AddressBech32: bech32Addr},
 		&nodeclient.FoundriesQuery{AliasAddressBech32: bech32Addr},
@@ -95,11 +95,11 @@ func (nc *nodeConn) PostTx(tx *iotago.Transaction, timeout ...time.Duration) err
 	return nc.waitUntilConfirmed(ctxWithTimeout, txMsg)
 }
 
-func (nc *nodeConn) GetAliasOutput(aliasID iotago.AliasID, timeout ...time.Duration) (iotago.Output, error) {
+func (nc *nodeConn) GetAliasOutput(aliasID iotago.AliasID, timeout ...time.Duration) (iotago.OutputID, iotago.Output, error) {
 	ctxWithTimeout, cancelContext := newCtx(nc.ctx, timeout...)
-	_, stateOutput, err := nc.indexerClient.Alias(ctxWithTimeout, aliasID)
+	outputID, stateOutput, err := nc.indexerClient.Alias(ctxWithTimeout, aliasID)
 	cancelContext()
-	return stateOutput, err
+	return *outputID, stateOutput, err
 }
 
 // RequestFunds implements L1Connection
@@ -120,7 +120,7 @@ func (nc *nodeConn) FaucetRequestHTTP(addr iotago.Address, timeout ...time.Durat
 	ctxWithTimeout, cancelContext := newCtx(nc.ctx, timeout...)
 	defer cancelContext()
 
-	faucetReq := fmt.Sprintf("{\"address\":%q}", addr.Bech32(parameters.L1.Protocol.Bech32HRP))
+	faucetReq := fmt.Sprintf("{\"address\":%q}", addr.Bech32(parameters.L1().Protocol.Bech32HRP))
 	faucetURL := fmt.Sprintf("%s/api/enqueue", nc.config.FaucetAddress)
 	httpReq, err := http.NewRequestWithContext(ctxWithTimeout, "POST", faucetURL, bytes.NewReader([]byte(faucetReq)))
 	if err != nil {
@@ -181,7 +181,7 @@ func MakeSimpleValueTX(
 	if err != nil {
 		return nil, fmt.Errorf("failed to get address outputs: %w", err)
 	}
-	txBuilder := builder.NewTransactionBuilder(parameters.L1.Protocol.NetworkID())
+	txBuilder := builder.NewTransactionBuilder(parameters.L1().Protocol.NetworkID())
 	inputSum := uint64(0)
 	for i, o := range senderOuts {
 		if inputSum >= amount {
@@ -189,10 +189,10 @@ func MakeSimpleValueTX(
 		}
 		oid := i
 		out := o
-		txBuilder = txBuilder.AddInput(&builder.ToBeSignedUTXOInput{
-			Address:  senderAddr,
-			OutputID: oid,
-			Output:   out,
+		txBuilder = txBuilder.AddInput(&builder.TxInput{
+			UnlockTarget: senderAddr,
+			InputID:      oid,
+			Input:        out,
 		})
 		inputSum += out.Deposit()
 	}
@@ -210,7 +210,7 @@ func MakeSimpleValueTX(
 		})
 	}
 	tx, err := txBuilder.Build(
-		parameters.L1.Protocol,
+		parameters.L1().Protocol,
 		sender.AsAddressSigner(),
 	)
 	if err != nil {

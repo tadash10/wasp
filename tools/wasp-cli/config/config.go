@@ -2,9 +2,11 @@ package config
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/iotaledger/wasp/client"
 	"github.com/iotaledger/wasp/packages/nodeconn"
+	"github.com/iotaledger/wasp/packages/parameters"
 	"github.com/iotaledger/wasp/packages/testutil/privtangle/privtangledefaults"
 	"github.com/iotaledger/wasp/tools/wasp-cli/log"
 	"github.com/spf13/cobra"
@@ -35,10 +37,23 @@ var configSetCmd = &cobra.Command{
 	},
 }
 
+var refreshL1ParamsCmd = &cobra.Command{
+	Use:   "refresh-l1-params",
+	Short: "Refresh L1 params from node",
+	Args:  cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		refreshL1ParamsFromNode()
+	},
+}
+
 const (
 	HostKindAPI     = "api"
 	HostKindPeering = "peering"
 	HostKindNanomsg = "nanomsg"
+
+	l1ParamsKey          = "l1.params"
+	l1ParamsTimestampKey = "l1.timestamp"
+	l1ParamsExpiration   = 24 * time.Hour
 )
 
 const (
@@ -55,6 +70,40 @@ func Init(rootCmd *cobra.Command) {
 
 	rootCmd.AddCommand(configSetCmd)
 	rootCmd.AddCommand(checkVersionsCmd)
+	rootCmd.AddCommand(refreshL1ParamsCmd)
+
+	// The first time parameters.L1() is called, it will be initialized with this function
+	parameters.InitL1Lazy(func() {
+		if l1ParamsExpired() {
+			refreshL1ParamsFromNode()
+		} else {
+			loadL1ParamsFromConfig()
+		}
+	})
+}
+
+func l1ParamsExpired() bool {
+	if viper.Get(l1ParamsKey) == nil {
+		return true
+	}
+	return viper.GetTime(l1ParamsTimestampKey).Add(l1ParamsExpiration).Before(time.Now())
+}
+
+func refreshL1ParamsFromNode() {
+	if log.VerboseFlag {
+		log.Printf("Getting L1 params from node at %s...\n", L1APIAddress())
+	}
+	L1Client() // this will call parameters.InitL1()
+	Set(l1ParamsKey, parameters.L1())
+	Set(l1ParamsTimestampKey, time.Now())
+}
+
+func loadL1ParamsFromConfig() {
+	// read L1 params from config file
+	var params *parameters.L1Params
+	err := viper.UnmarshalKey("l1.params", &params)
+	log.Check(err)
+	parameters.InitL1(params)
 }
 
 func Read() {
@@ -111,11 +160,11 @@ func SetToken(token string) error {
 	return Store.SetToken(token)
 }
 
-func WaspClient() *client.WaspClient {
+func WaspClient(i ...int) *client.WaspClient {
 	// TODO: add authentication for /adm
 	log.Verbosef("using Wasp host %s\n", WaspAPI())
-	L1Client() // this will fill parameters.L1 with data from the L1 node
-	return client.NewWaspClient(WaspAPI()).WithToken(GetToken())
+	L1Client() // this will fill parameters.L1() with data from the L1 node
+	return client.NewWaspClient(WaspAPI(i...)).WithToken(GetToken())
 }
 
 const (
@@ -151,15 +200,19 @@ func WaspAPI() string {
 	if r != "" {
 		return r
 	}
-	return committeeHost(HostKindAPI, 0)
+	return committeeHost(HostKindAPI, index)
 }
 
-func WaspNanomsg() string {
+func WaspNanomsg(i ...int) string {
+	index := 0
+	if len(i) > 0 {
+		index = i[0]
+	}
 	r := viper.GetString("wasp." + HostKindNanomsg)
 	if r != "" {
 		return r
 	}
-	return committeeHost(HostKindNanomsg, 0)
+	return committeeHost(HostKindNanomsg, index)
 }
 
 func FindNodeBy(kind, v string) int {

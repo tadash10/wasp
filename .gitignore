@@ -25,5 +25,6 @@ goshimmer.log
 /*.sh
 
 *.trie
-*.bin
 *.snapshot
+snapshot
+gascalibration

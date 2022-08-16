@@ -4,18 +4,17 @@
 // Package lpp implements a peering.NetworkProvider based on the libp2p.
 //
 // The set of known peers is managed in several places:
-//  - TrustManager contains a registry of trusted peers and their pub keys.
-//    That's the main reference DB for the authentication. It is persistent.
-//  - libp2p.Peerstore -- loaded with addresses and public keys based on the
-//    TrustManager. It is used by the libp2p for address resolution and
-//    protocol negotiation.
-//  - In-memory copy of the trust DB in the netImpl struct (maps: peerNy*)
-//    with additional runtime data needed for a fast lookup of peers by
-//    their libp2p IDs, as well as for authentication etc.
+//   - TrustManager contains a registry of trusted peers and their pub keys.
+//     That's the main reference DB for the authentication. It is persistent.
+//   - libp2p.Peerstore -- loaded with addresses and public keys based on the
+//     TrustManager. It is used by the libp2p for address resolution and
+//     protocol negotiation.
+//   - In-memory copy of the trust DB in the netImpl struct (maps: peerNy*)
+//     with additional runtime data needed for a fast lookup of peers by
+//     their libp2p IDs, as well as for authentication etc.
 //
 // The main identification of a peer is its public key. The address (NetID)
 // may change over time (because of NAT, and similar reasons).
-//
 package lpp
 
 import (
@@ -139,17 +138,17 @@ func NewNetworkProvider(
 func (n *netImpl) lppAddToPeerStore(trustedPeer *peering.TrustedPeer) (libp2ppeer.ID, error) {
 	lppPeerID, lppPeerPub, err := n.lppTrustedPeerID(trustedPeer)
 	if err != nil {
-		return libp2ppeer.ID(""), err
+		return "", err
 	}
 	peerHost, peerPort, err := peering.ParseNetID(trustedPeer.NetID)
 	if err != nil {
-		return libp2ppeer.ID(""), xerrors.Errorf("failed to parse trusted peer NetID=%v, error: %w", trustedPeer.NetID, err)
+		return "", xerrors.Errorf("failed to parse trusted peer NetID=%v, error: %w", trustedPeer.NetID, err)
 	}
 	//
 	// Resolve IP addresses.
 	peerIPs, err := net.LookupIP(peerHost)
 	if err != nil {
-		return libp2ppeer.ID(""), xerrors.Errorf("failed to lookup IPs for NetID=%v, error: %w", trustedPeer.NetID, err)
+		return "", xerrors.Errorf("failed to lookup IPs for NetID=%v, error: %w", trustedPeer.NetID, err)
 	}
 	//
 	// Create multiaddresses.
@@ -169,7 +168,7 @@ func (n *netImpl) lppAddToPeerStore(trustedPeer *peering.TrustedPeer) (libp2ppee
 			}
 			addr, err := multiaddr.NewMultiaddr(fmt.Sprintf(addrPatterns[i], ipVer, ipStr, peerPort))
 			if err != nil {
-				return libp2ppeer.ID(""), xerrors.Errorf("failed to make libp2p address for NetID=%v, error: %w", trustedPeer.NetID, err)
+				return "", xerrors.Errorf("failed to make libp2p address for NetID=%v, error: %w", trustedPeer.NetID, err)
 			}
 			addrs = append(addrs, addr)
 		}
@@ -178,7 +177,7 @@ func (n *netImpl) lppAddToPeerStore(trustedPeer *peering.TrustedPeer) (libp2ppee
 	n.lppHost.Peerstore().AddAddrs(lppPeerID, addrs, peerstore.PermanentAddrTTL)
 	err = n.lppHost.Peerstore().AddPubKey(lppPeerID, lppPeerPub)
 	if err != nil {
-		return libp2ppeer.ID(""), xerrors.Errorf("failed add PubKey for NetID=%v, error: %w", trustedPeer.NetID, err)
+		return "", xerrors.Errorf("failed add PubKey for NetID=%v, error: %w", trustedPeer.NetID, err)
 	}
 	return lppPeerID, nil
 }
@@ -186,11 +185,11 @@ func (n *netImpl) lppAddToPeerStore(trustedPeer *peering.TrustedPeer) (libp2ppee
 func (n *netImpl) lppTrustedPeerID(trustedPeer *peering.TrustedPeer) (libp2ppeer.ID, crypto.PubKey, error) {
 	lppPeerPub, err := crypto.UnmarshalEd25519PublicKey(trustedPeer.PubKey.AsBytes())
 	if err != nil {
-		return libp2ppeer.ID(""), nil, xerrors.Errorf("failed to convert pub key: %w", err)
+		return "", nil, xerrors.Errorf("failed to convert pub key: %w", err)
 	}
 	lppPeerID, err := libp2ppeer.IDFromPublicKey(lppPeerPub)
 	if err != nil {
-		return libp2ppeer.ID(""), nil, xerrors.Errorf("failed to make libp2p:peer.ID: %w", err)
+		return "", nil, xerrors.Errorf("failed to make libp2p:peer.ID: %w", err)
 	}
 	return lppPeerID, lppPeerPub, nil
 }
@@ -349,7 +348,7 @@ func (n *netImpl) PeerDomain(peeringID peering.PeeringID, peerPubKeys []*cryptol
 func (n *netImpl) SendMsgByPubKey(pubKey *cryptolib.PublicKey, msg *peering.PeerMessageData) {
 	peer, err := n.PeerByPubKey(pubKey)
 	if err != nil {
-		n.log.Warnf("SendMsgByPubKey: PubKey %v is not in the network", pubKey.AsString())
+		n.log.Warnf("SendMsgByPubKey: PubKey %v is not in the network", pubKey.String())
 		return
 	}
 	peer.SendMsg(msg)

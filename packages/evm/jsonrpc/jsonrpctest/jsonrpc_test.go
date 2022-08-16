@@ -21,6 +21,7 @@ import (
 	"github.com/iotaledger/wasp/packages/evm/evmtypes"
 	"github.com/iotaledger/wasp/packages/evm/evmutil"
 	"github.com/iotaledger/wasp/packages/evm/jsonrpc"
+	"github.com/iotaledger/wasp/packages/isc"
 	"github.com/iotaledger/wasp/packages/solo"
 	"github.com/iotaledger/wasp/packages/vm/core/evm"
 	"github.com/stretchr/testify/require"
@@ -35,9 +36,9 @@ type soloTestEnv struct {
 func newSoloTestEnv(t *testing.T) *soloTestEnv {
 	evmtest.InitGoEthLogger(t)
 
-	s := solo.New(t, &solo.InitOptions{AutoAdjustDustDeposit: true, Debug: true, PrintStackTrace: true})
+	s := solo.New(t, &solo.InitOptions{AutoAdjustStorageDeposit: true, Debug: true, PrintStackTrace: true})
 	chainOwner, _ := s.NewKeyPairWithFunds()
-	chain := s.NewChain(chainOwner, "iscpchain")
+	chain, _, _ := s.NewChainExt(chainOwner, 0, "chain1")
 
 	accounts := jsonrpc.NewAccountManager(nil)
 	rpcsrv := jsonrpc.NewServer(chain.EVM(), accounts)
@@ -65,7 +66,11 @@ func TestRPCGetBalance(t *testing.T) {
 	_, emptyAddress := solo.NewEthereumAccount()
 	require.Zero(t, env.Balance(emptyAddress).Uint64())
 	_, nonEmptyAddress := env.soloChain.NewEthereumAccountWithL2Funds()
-	require.NotZero(t, env.Balance(nonEmptyAddress).Uint64())
+	require.Equal(
+		t,
+		env.soloChain.L2BaseTokens(isc.NewEthereumAddressAgentID(nonEmptyAddress))*1e12,
+		env.Balance(nonEmptyAddress).Uint64(),
+	)
 }
 
 func TestRPCGetCode(t *testing.T) {
@@ -77,7 +82,7 @@ func TestRPCGetCode(t *testing.T) {
 
 	// contract address
 	{
-		_, contractAddress, _ := env.deployStorageContract(creator, 42)
+		_, contractAddress, _ := env.deployStorageContract(creator)
 		require.NotEmpty(t, env.Code(contractAddress))
 	}
 }
@@ -86,7 +91,7 @@ func TestRPCGetStorage(t *testing.T) {
 	env := newSoloTestEnv(t)
 	creator, _ := env.soloChain.NewEthereumAccountWithL2Funds()
 
-	_, contractAddress, contractABI := env.deployStorageContract(creator, 42)
+	_, contractAddress, contractABI := env.deployStorageContract(creator)
 
 	// first static variable in contract (uint32 n) has slot 0. See:
 	// https://docs.soliditylang.org/en/v0.6.6/miscellaneous.html#layout-of-state-variables-in-storage
@@ -103,15 +108,16 @@ func TestRPCBlockNumber(t *testing.T) {
 	env := newSoloTestEnv(t)
 	require.EqualValues(t, 0, env.BlockNumber())
 	creator, _ := env.soloChain.NewEthereumAccountWithL2Funds()
-	env.deployStorageContract(creator, 42)
-	require.EqualValues(t, 1, env.BlockNumber())
+	require.EqualValues(t, 1, env.BlockNumber()) // EVM block number is incremented along with ISC block index
+	env.deployStorageContract(creator)
+	require.EqualValues(t, 2, env.BlockNumber())
 }
 
 func TestRPCGetTransactionCount(t *testing.T) {
 	env := newSoloTestEnv(t)
 	creator, creatorAddress := env.soloChain.NewEthereumAccountWithL2Funds()
 	require.EqualValues(t, 0, env.NonceAt(creatorAddress))
-	env.deployStorageContract(creator, 42)
+	env.deployStorageContract(creator)
 	require.EqualValues(t, 1, env.NonceAt(creatorAddress))
 }
 
@@ -119,7 +125,7 @@ func TestRPCGetBlockByNumber(t *testing.T) {
 	env := newSoloTestEnv(t)
 	creator, _ := env.soloChain.NewEthereumAccountWithL2Funds()
 	require.EqualValues(t, 0, env.BlockByNumber(big.NewInt(0)).Number().Uint64())
-	env.deployStorageContract(creator, 42)
+	env.deployStorageContract(creator)
 	require.EqualValues(t, 1, env.BlockByNumber(big.NewInt(1)).Number().Uint64())
 }
 
@@ -128,7 +134,7 @@ func TestRPCGetBlockByHash(t *testing.T) {
 	require.Nil(t, env.BlockByHash(common.Hash{}))
 	creator, _ := env.soloChain.NewEthereumAccountWithL2Funds()
 	require.EqualValues(t, 0, env.BlockByHash(env.BlockByNumber(big.NewInt(0)).Hash()).Number().Uint64())
-	env.deployStorageContract(creator, 42)
+	env.deployStorageContract(creator)
 	require.EqualValues(t, 1, env.BlockByHash(env.BlockByNumber(big.NewInt(1)).Hash()).Number().Uint64())
 }
 
@@ -136,39 +142,39 @@ func TestRPCGetTransactionByHash(t *testing.T) {
 	env := newSoloTestEnv(t)
 	require.Nil(t, env.TransactionByHash(common.Hash{}))
 	creator, _ := env.soloChain.NewEthereumAccountWithL2Funds()
-	env.deployStorageContract(creator, 42)
-	block1 := env.BlockByNumber(big.NewInt(1))
-	tx := env.TransactionByHash(block1.Transactions()[0].Hash())
-	require.Equal(t, block1.Transactions()[0].Hash(), tx.Hash())
+	env.deployStorageContract(creator)
+	block := env.BlockByNumber(new(big.Int).SetUint64(env.BlockNumber()))
+	tx := env.TransactionByHash(block.Transactions()[0].Hash())
+	require.Equal(t, block.Transactions()[0].Hash(), tx.Hash())
 }
 
 func TestRPCGetTransactionByBlockHashAndIndex(t *testing.T) {
 	env := newSoloTestEnv(t)
 	require.Nil(t, env.TransactionByBlockHashAndIndex(common.Hash{}, 0))
 	creator, _ := env.soloChain.NewEthereumAccountWithL2Funds()
-	env.deployStorageContract(creator, 42)
-	block1 := env.BlockByNumber(big.NewInt(1))
-	tx := env.TransactionByBlockHashAndIndex(block1.Hash(), 0)
-	require.Equal(t, block1.Transactions()[0].Hash(), tx.Hash())
+	env.deployStorageContract(creator)
+	block := env.BlockByNumber(new(big.Int).SetUint64(env.BlockNumber()))
+	tx := env.TransactionByBlockHashAndIndex(block.Hash(), 0)
+	require.Equal(t, block.Transactions()[0].Hash(), tx.Hash())
 }
 
 func TestRPCGetUncleByBlockHashAndIndex(t *testing.T) {
 	env := newSoloTestEnv(t)
 	require.Nil(t, env.UncleByBlockHashAndIndex(common.Hash{}, 0))
 	creator, _ := env.soloChain.NewEthereumAccountWithL2Funds()
-	env.deployStorageContract(creator, 42)
-	block1 := env.BlockByNumber(big.NewInt(1))
-	require.Nil(t, env.UncleByBlockHashAndIndex(block1.Hash(), 0))
+	env.deployStorageContract(creator)
+	block := env.BlockByNumber(new(big.Int).SetUint64(env.BlockNumber()))
+	require.Nil(t, env.UncleByBlockHashAndIndex(block.Hash(), 0))
 }
 
 func TestRPCGetTransactionByBlockNumberAndIndex(t *testing.T) {
 	env := newSoloTestEnv(t)
 	require.Nil(t, env.TransactionByBlockNumberAndIndex(big.NewInt(3), 0))
 	creator, _ := env.soloChain.NewEthereumAccountWithL2Funds()
-	env.deployStorageContract(creator, 42)
-	block1 := env.BlockByNumber(big.NewInt(1))
-	tx := env.TransactionByBlockNumberAndIndex(block1.Number(), 0)
-	require.EqualValues(t, block1.Hash(), *tx.BlockHash)
+	env.deployStorageContract(creator)
+	block := env.BlockByNumber(new(big.Int).SetUint64(env.BlockNumber()))
+	tx := env.TransactionByBlockNumberAndIndex(block.Number(), 0)
+	require.EqualValues(t, block.Hash(), *tx.BlockHash)
 	require.EqualValues(t, 0, *tx.TransactionIndex)
 }
 
@@ -176,47 +182,47 @@ func TestRPCGetUncleByBlockNumberAndIndex(t *testing.T) {
 	env := newSoloTestEnv(t)
 	require.Nil(t, env.UncleByBlockNumberAndIndex(big.NewInt(3), 0))
 	creator, _ := env.soloChain.NewEthereumAccountWithL2Funds()
-	env.deployStorageContract(creator, 42)
-	block1 := env.BlockByNumber(big.NewInt(1))
-	require.Nil(t, env.UncleByBlockNumberAndIndex(block1.Number(), 0))
+	env.deployStorageContract(creator)
+	block := env.BlockByNumber(new(big.Int).SetUint64(env.BlockNumber()))
+	require.Nil(t, env.UncleByBlockNumberAndIndex(block.Number(), 0))
 }
 
 func TestRPCGetTransactionCountByHash(t *testing.T) {
 	env := newSoloTestEnv(t)
 	creator, _ := env.soloChain.NewEthereumAccountWithL2Funds()
-	env.deployStorageContract(creator, 42)
-	block1 := env.BlockByNumber(big.NewInt(1))
-	require.Positive(t, len(block1.Transactions()))
-	require.EqualValues(t, len(block1.Transactions()), env.BlockTransactionCountByHash(block1.Hash()))
+	env.deployStorageContract(creator)
+	block := env.BlockByNumber(new(big.Int).SetUint64(env.BlockNumber()))
+	require.Positive(t, len(block.Transactions()))
+	require.EqualValues(t, len(block.Transactions()), env.BlockTransactionCountByHash(block.Hash()))
 	require.EqualValues(t, 0, env.BlockTransactionCountByHash(common.Hash{}))
 }
 
 func TestRPCGetUncleCountByBlockHash(t *testing.T) {
 	env := newSoloTestEnv(t)
 	creator, _ := env.soloChain.NewEthereumAccountWithL2Funds()
-	env.deployStorageContract(creator, 42)
-	block1 := env.BlockByNumber(big.NewInt(1))
-	require.Zero(t, len(block1.Uncles()))
-	require.EqualValues(t, len(block1.Uncles()), env.UncleCountByBlockHash(block1.Hash()))
+	env.deployStorageContract(creator)
+	block := env.BlockByNumber(new(big.Int).SetUint64(env.BlockNumber()))
+	require.Zero(t, len(block.Uncles()))
+	require.EqualValues(t, len(block.Uncles()), env.UncleCountByBlockHash(block.Hash()))
 	require.EqualValues(t, 0, env.UncleCountByBlockHash(common.Hash{}))
 }
 
 func TestRPCGetTransactionCountByNumber(t *testing.T) {
 	env := newSoloTestEnv(t)
 	creator, _ := env.soloChain.NewEthereumAccountWithL2Funds()
-	env.deployStorageContract(creator, 42)
-	block1 := env.BlockByNumber(nil)
-	require.Positive(t, len(block1.Transactions()))
-	require.EqualValues(t, len(block1.Transactions()), env.BlockTransactionCountByNumber())
+	env.deployStorageContract(creator)
+	block := env.BlockByNumber(new(big.Int).SetUint64(env.BlockNumber()))
+	require.Positive(t, len(block.Transactions()))
+	require.EqualValues(t, len(block.Transactions()), env.BlockTransactionCountByNumber())
 }
 
 func TestRPCGetUncleCountByBlockNumber(t *testing.T) {
 	env := newSoloTestEnv(t)
 	creator, _ := env.soloChain.NewEthereumAccountWithL2Funds()
-	env.deployStorageContract(creator, 42)
-	block1 := env.BlockByNumber(big.NewInt(1))
-	require.Zero(t, len(block1.Uncles()))
-	require.EqualValues(t, len(block1.Uncles()), env.UncleCountByBlockNumber(big.NewInt(1)))
+	env.deployStorageContract(creator)
+	block := env.BlockByNumber(new(big.Int).SetUint64(env.BlockNumber()))
+	require.Zero(t, len(block.Uncles()))
+	require.EqualValues(t, len(block.Uncles()), env.UncleCountByBlockNumber(big.NewInt(1)))
 }
 
 func TestRPCAccounts(t *testing.T) {
@@ -303,8 +309,8 @@ func TestRPCGetTxReceipt(t *testing.T) {
 	require.EqualValues(t, contractAddress, receipt.ContractAddress)
 	require.NotZero(t, receipt.GasUsed)
 
-	require.EqualValues(t, big.NewInt(1), receipt.BlockNumber)
-	require.EqualValues(t, env.BlockByNumber(big.NewInt(1)).Hash(), receipt.BlockHash)
+	require.EqualValues(t, big.NewInt(2), receipt.BlockNumber)
+	require.EqualValues(t, env.BlockByNumber(big.NewInt(2)).Hash(), receipt.BlockHash)
 	require.EqualValues(t, 0, receipt.TransactionIndex)
 }
 
@@ -342,11 +348,6 @@ func TestRPCCall(t *testing.T) {
 func TestRPCGetLogs(t *testing.T) {
 	env := newSoloTestEnv(t)
 	env.TestRPCGetLogs(env.soloChain.NewEthereumAccountWithL2Funds)
-}
-
-func TestRPCGasLimit(t *testing.T) {
-	env := newSoloTestEnv(t)
-	env.TestRPCGasLimit(env.soloChain.NewEthereumAccountWithL2Funds)
 }
 
 func TestRPCEthChainID(t *testing.T) {

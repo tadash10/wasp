@@ -3,141 +3,125 @@
 
 pragma solidity >=0.8.5;
 
-import "@isccontract/ISC.sol";
+import "@iscmagic/ISC.sol";
 
 contract ISCTest {
-	ISCError TestError = isc.registerError("TestError");
+    ISCError TestError = isc.registerError("TestError");
 
-	function getChainID() public view returns (ISCChainID) {
-		return isc.getChainID();
-	}
+    function getChainID() public view returns (ISCChainID) {
+        return isc.getChainID();
+    }
 
-	function triggerEvent(string memory s) public {
-		isc.triggerEvent(s);
-	}
+    function triggerEvent(string memory s) public {
+        isc.triggerEvent(s);
+    }
 
-	function triggerEventFail(string memory s) public {
-		isc.triggerEvent(s);
-		revert();
-	}
+    function triggerEventFail(string memory s) public {
+        isc.triggerEvent(s);
+        revert();
+    }
 
-	event EntropyEvent(bytes32 entropy);
-	function emitEntropy() public {
-		bytes32 e = isc.getEntropy();
-		emit EntropyEvent(e);
-	}
+    event EntropyEvent(bytes32 entropy);
 
-	event RequestIDEvent(ISCRequestID reqID);
-	function emitRequestID() public {
-		ISCRequestID memory reqID = isc.getRequestID();
-		emit RequestIDEvent(reqID);
-	}
+    function emitEntropy() public {
+        bytes32 e = isc.getEntropy();
+        emit EntropyEvent(e);
+    }
 
-	event GetCallerEvent(ISCAgentID agentID);
-	function emitGetCaller() public {
-	  ISCAgentID memory agentID = isc.getCaller();
-	  emit GetCallerEvent(agentID);
-	}
+    event RequestIDEvent(ISCRequestID reqID);
 
-	event SenderAccountEvent(ISCAgentID sender);
-	function emitSenderAccount() public {
-		ISCAgentID memory sender = isc.getSenderAccount();
-		emit SenderAccountEvent(sender);
-	}
+    function emitRequestID() public {
+        ISCRequestID memory reqID = isc.getRequestID();
+        emit RequestIDEvent(reqID);
+    }
 
-	function send(IotaAddress memory receiver) public {
-		ISCDict memory params = ISCDict(new ISCDictItem[](1));
-		bytes memory int64Encoded42 = hex"2A00000000000000";
-		params.items[0] = ISCDictItem("x", int64Encoded42);
+    event SenderAccountEvent(ISCAgentID sender);
 
-		bytes memory emptyID = new bytes(38);
-		IotaNativeTokenID memory tokenId;
-		tokenId.data = emptyID;
+    function emitSenderAccount() public {
+        ISCAgentID memory sender = isc.getSenderAccount();
+        emit SenderAccountEvent(sender);
+    }
 
-		ISCFungibleTokens memory fungibleTokens;
-		fungibleTokens.iotas = 1074;
+    function sendBaseTokens(L1Address memory receiver, uint64 baseTokens)
+        public
+    {
+        ISCAllowance memory allowance;
+        allowance.baseTokens = baseTokens;
 
-		ISCSendMetadata memory metadata;
-		metadata.entrypoint = ISCHname.wrap(0x1337);
-		metadata.targetContract = ISCHname.wrap(0xd34db33f);
-		metadata.params = params;
+        isc.takeAllowedFunds(msg.sender, allowance);
 
-		ISCSendOptions memory options;
+        ISCFungibleTokens memory fungibleTokens;
+        fungibleTokens.baseTokens = baseTokens;
 
-		isc.send(receiver, fungibleTokens, true, metadata, options);
-	}
-
-	function revertWithVMError() public view {
-		revert VMError(TestError);
-	}
-
-	event AllowanceIotasEvent(uint64 iotas);
-	function emitAllowanceIotas() public {
-		emit AllowanceIotasEvent(isc.getAllowanceIotas());
-	}
-
-	event AllowanceNativeTokenEvent(IotaNativeToken token);
-	function emitAllowanceNativeTokens() public {
-		uint16 n = isc.getAllowanceNativeTokensLen();
-		for (uint16 i = 0; i < n; i++) {
-			emit AllowanceNativeTokenEvent(isc.getAllowanceNativeToken(i));
-		}
-	}
-
-	event AllowanceAvailableIotasEvent(uint64 iotas);
-	function emitAllowanceAvailableIotas() public {
-		emit AllowanceAvailableIotasEvent(isc.getAllowanceAvailableIotas());
-	}
-
-	event AllowanceAvailableNativeTokenEvent(IotaNativeToken token);
-	function emitAllowanceAvailableNativeTokens() public {
-		uint16 n = isc.getAllowanceAvailableNativeTokensLen();
-		for (uint16 i = 0; i < n;i++) {
-			emit AllowanceAvailableNativeTokenEvent(isc.getAllowanceAvailableNativeToken(i));
-		}
-	}
-
-	event AllowanceNFTEvent(ISCNFT nft);
-	function emitAllowanceNFTs() public {
-		uint16 n = isc.getAllowanceNFTsLen();
-		for (uint16 i = 0;i < n;i++) {
-			emit AllowanceNFTEvent(isc.getAllowanceNFT(i));
-		}
-	}
-
-	event AllowanceAvailableNFTEvent(ISCNFT nft);
-	function emitAllowanceAvailableNFTs() public {
-		uint16 n = isc.getAllowanceAvailableNFTsLen();
-		for (uint16 i = 0;i < n;i++) {
-			emit AllowanceAvailableNFTEvent(isc.getAllowanceAvailableNFT(i));
-		}
-	}
-
-	function callInccounter() public {
-		ISCDict memory params = ISCDict(new ISCDictItem[](1));
-		bytes memory int64Encoded42 = hex"2A00000000000000";
-		params.items[0] = ISCDictItem("counter", int64Encoded42);
-		ISCAllowance memory allowance;
-		isc.call(isc.hn("inccounter"), isc.hn("incCounter"), params, allowance);
-	}
-
-    function callSendAsNFT(IotaAddress memory receiver, IotaNFTID id) public {
-		ISCFungibleTokens memory fungibleTokens;
-		fungibleTokens.iotas = 1074;
-        fungibleTokens.tokens = new IotaNativeToken[](0);
-
+        ISCDict memory params;
 
         ISCSendMetadata memory metadata;
-		metadata.entrypoint = ISCHname.wrap(0x1337);
-		metadata.targetContract = ISCHname.wrap(0xd34db33f);
+        metadata.targetContract = isc.hn("accounts");
+        metadata.entrypoint = isc.hn("deposit");
+        metadata.params = params;
+
+        ISCSendOptions memory options;
+
+        isc.send(receiver, fungibleTokens, true, metadata, options);
+    }
+
+    function revertWithVMError() public view {
+        revert VMError(TestError);
+    }
+
+    function callInccounter() public {
+        ISCDict memory params = ISCDict(new ISCDictItem[](1));
+        bytes memory int64Encoded42 = hex"2A00000000000000";
+        params.items[0] = ISCDictItem("counter", int64Encoded42);
+        ISCAllowance memory allowance;
+        isc.call(isc.hn("inccounter"), isc.hn("incCounter"), params, allowance);
+    }
+
+    function callSendAsNFT(L1Address memory receiver, NFTID id) public {
+        ISCFungibleTokens memory fungibleTokens;
+        fungibleTokens.baseTokens = 1074;
+        fungibleTokens.tokens = new NativeToken[](0);
+
+        ISCSendMetadata memory metadata;
+        metadata.entrypoint = ISCHname.wrap(0x1337);
+        metadata.targetContract = ISCHname.wrap(0xd34db33f);
 
         ISCDict memory optParams = ISCDict(new ISCDictItem[](1));
-		bytes memory int64Encoded42 = hex"2A00000000000000";
-		optParams.items[0] = ISCDictItem("x", int64Encoded42);
-		metadata.params = optParams;
+        bytes memory int64Encoded42 = hex"2A00000000000000";
+        optParams.items[0] = ISCDictItem("x", int64Encoded42);
+        metadata.params = optParams;
 
-		ISCSendOptions memory options;
+        ISCSendOptions memory options;
 
-        isc.sendAsNFT(receiver, fungibleTokens, true, metadata, options, id); 
+        isc.sendAsNFT(receiver, fungibleTokens, id, true, metadata, options);
+    }
+
+    function makeISCPanic() public {
+        // will produce a panic in ISC
+        ISCDict memory params;
+        ISCAllowance memory allowance;
+        isc.call(
+            isc.hn("governance"),
+            isc.hn("claimChainOwnershi"),
+            params,
+            allowance
+        );
+    }
+
+    function moveToAccount(
+        ISCAgentID memory targetAgentID,
+        ISCAllowance memory allowance
+    ) public {
+        // moves funds owned by the current contract to the targetAgentID
+        ISCDict memory params = ISCDict(new ISCDictItem[](2));
+        params.items[0] = ISCDictItem("a", targetAgentID.data);
+        bytes memory forceOpenAccount = "\xFF";
+        params.items[1] = ISCDictItem("c", forceOpenAccount);
+        isc.call(
+            isc.hn("accounts"),
+            isc.hn("transferAllowanceTo"),
+            params,
+            allowance
+        );
     }
 }

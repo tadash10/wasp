@@ -3,7 +3,7 @@ package accounts
 import (
 	"github.com/iotaledger/hive.go/serializer/v2"
 	iotago "github.com/iotaledger/iota.go/v3"
-	"github.com/iotaledger/wasp/packages/iscp"
+	"github.com/iotaledger/wasp/packages/isc"
 	"github.com/iotaledger/wasp/packages/kv"
 	"github.com/iotaledger/wasp/packages/kv/codec"
 	"github.com/iotaledger/wasp/packages/kv/collections"
@@ -13,20 +13,20 @@ import (
 // viewBalance returns the balances of the account belonging to the AgentID
 // Params:
 // - ParamAgentID
-func viewBalance(ctx iscp.SandboxView) dict.Dict {
+func viewBalance(ctx isc.SandboxView) dict.Dict {
 	ctx.Log().Debugf("accounts.viewBalance")
 	aid, err := ctx.Params().GetAgentID(ParamAgentID)
 	ctx.RequireNoError(err)
 	return getAccountBalanceDict(getAccountR(ctx.State(), aid))
 }
 
-// viewBalanceIotas returns the iota balance of the account belonging to the AgentID
+// viewBalanceBaseToken returns the base tokens balance of the account belonging to the AgentID
 // Params:
 // - ParamAgentID
 // Returns: {ParamBalance: uint64}
-func viewBalanceIotas(ctx iscp.SandboxView) dict.Dict {
-	iotas := getIotaBalance(getAccountR(ctx.State(), ctx.Params().MustGetAgentID(ParamAgentID)))
-	return dict.Dict{ParamBalance: codec.EncodeUint64(iotas)}
+func viewBalanceBaseToken(ctx isc.SandboxView) dict.Dict {
+	nTokens := getBaseTokensBalance(getAccountR(ctx.State(), ctx.Params().MustGetAgentID(ParamAgentID)))
+	return dict.Dict{ParamBalance: codec.EncodeUint64(nTokens)}
 }
 
 // viewBalanceNativeToken returns the native token balance of the account belonging to the AgentID
@@ -34,7 +34,7 @@ func viewBalanceIotas(ctx iscp.SandboxView) dict.Dict {
 // - ParamAgentID
 // - ParamNativeTokenID
 // Returns: {ParamBalance: big.Int}
-func viewBalanceNativeToken(ctx iscp.SandboxView) dict.Dict {
+func viewBalanceNativeToken(ctx isc.SandboxView) dict.Dict {
 	id := ctx.Params().MustGetNativeTokenID(ParamNativeTokenID)
 	bal := getNativeTokenBalance(
 		getAccountR(ctx.State(), ctx.Params().MustGetAgentID(ParamAgentID)),
@@ -43,19 +43,19 @@ func viewBalanceNativeToken(ctx iscp.SandboxView) dict.Dict {
 	return dict.Dict{ParamBalance: bal.Bytes()}
 }
 
-// viewTotalAssets returns total colored balances controlled by the chain
-func viewTotalAssets(ctx iscp.SandboxView) dict.Dict {
+// viewTotalAssets returns total balances controlled by the chain
+func viewTotalAssets(ctx isc.SandboxView) dict.Dict {
 	ctx.Log().Debugf("accounts.viewTotalAssets")
 	return getAccountBalanceDict(getTotalL2AssetsAccountR(ctx.State()))
 }
 
 // viewAccounts returns list of all accounts as keys of the ImmutableCodec
-func viewAccounts(ctx iscp.SandboxView) dict.Dict {
+func viewAccounts(ctx isc.SandboxView) dict.Dict {
 	return getAccountsIntern(ctx.State())
 }
 
 // nonces are only sent with off-ledger requests
-func viewGetAccountNonce(ctx iscp.SandboxView) dict.Dict {
+func viewGetAccountNonce(ctx isc.SandboxView) dict.Dict {
 	account := ctx.Params().MustGetAgentID(ParamAgentID)
 	nonce := GetMaxAssumedNonce(ctx.State(), account)
 	ret := dict.New()
@@ -63,8 +63,8 @@ func viewGetAccountNonce(ctx iscp.SandboxView) dict.Dict {
 	return ret
 }
 
-// viewGetNativeTokenIDRegistry returns all native token ID accounted in the chian
-func viewGetNativeTokenIDRegistry(ctx iscp.SandboxView) dict.Dict {
+// viewGetNativeTokenIDRegistry returns all native token ID accounted in the chain
+func viewGetNativeTokenIDRegistry(ctx isc.SandboxView) dict.Dict {
 	mapping := getNativeTokenOutputMapR(ctx.State())
 	ret := dict.New()
 	mapping.MustIterate(func(elemKey []byte, value []byte) bool {
@@ -75,7 +75,7 @@ func viewGetNativeTokenIDRegistry(ctx iscp.SandboxView) dict.Dict {
 }
 
 // viewFoundryOutput takes serial number and returns corresponding foundry output in serialized form
-func viewFoundryOutput(ctx iscp.SandboxView) dict.Dict {
+func viewFoundryOutput(ctx isc.SandboxView) dict.Dict {
 	ctx.Log().Debugf("accounts.viewFoundryOutput")
 
 	sn := ctx.Params().MustGetUint32(ParamFoundrySN)
@@ -89,7 +89,7 @@ func viewFoundryOutput(ctx iscp.SandboxView) dict.Dict {
 }
 
 // viewAccountNFTs returns the NFTIDs of NFTs owned by an account
-func viewAccountNFTs(ctx iscp.SandboxView) dict.Dict {
+func viewAccountNFTs(ctx isc.SandboxView) dict.Dict {
 	ctx.Log().Debugf("accounts.viewAccountNFTs")
 	aid := ctx.Params().MustGetAgentID(ParamAgentID)
 	nftIDs := getAccountNFTs(getAccountR(ctx.State(), aid))
@@ -103,7 +103,7 @@ func viewAccountNFTs(ctx iscp.SandboxView) dict.Dict {
 }
 
 // viewNFTData returns the NFT data for a given NFTID
-func viewNFTData(ctx iscp.SandboxView) dict.Dict {
+func viewNFTData(ctx isc.SandboxView) dict.Dict {
 	ctx.Log().Debugf("accounts.viewNFTData")
 	nftIDBytes := ctx.Params().MustGetBytes(ParamNFTID)
 	if len(nftIDBytes) != iotago.NFTIDLength {

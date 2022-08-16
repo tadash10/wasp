@@ -8,25 +8,25 @@ import (
 	"fmt"
 	"time"
 
+	"golang.org/x/xerrors"
+
 	iotago "github.com/iotaledger/iota.go/v3"
 	"github.com/iotaledger/wasp/packages/chain"
 	"github.com/iotaledger/wasp/packages/chain/committee"
 	"github.com/iotaledger/wasp/packages/chain/consensus"
 	"github.com/iotaledger/wasp/packages/chain/messages"
 	"github.com/iotaledger/wasp/packages/cryptolib"
-	"github.com/iotaledger/wasp/packages/iscp"
+	"github.com/iotaledger/wasp/packages/isc"
 	"github.com/iotaledger/wasp/packages/peering"
 	"github.com/iotaledger/wasp/packages/registry"
 	"github.com/iotaledger/wasp/packages/state"
 	"github.com/iotaledger/wasp/packages/tcrypto"
-	"golang.org/x/xerrors"
 )
 
 func (c *chainObj) recvLoop() {
 	dismissChainMsgChannel := c.dismissChainMsgPipe.Out()
 	aliasOutputChannel := c.aliasOutputPipe.Out()
 	offLedgerRequestMsgChannel := c.offLedgerRequestPeerMsgPipe.Out()
-	requestAckMsgChannel := c.requestAckPeerMsgPipe.Out()
 	missingRequestIDsMsgChannel := c.missingRequestIDsPeerMsgPipe.Out()
 	missingRequestMsgChannel := c.missingRequestPeerMsgPipe.Out()
 	timerTickMsgChannel := c.timerTickMsgPipe.Out()
@@ -40,7 +40,7 @@ func (c *chainObj) recvLoop() {
 			}
 		case msg, ok := <-aliasOutputChannel:
 			if ok {
-				c.handleAliasOutput(msg.(*iscp.AliasOutputWithID))
+				c.handleAliasOutput(msg.(*isc.AliasOutputWithID))
 			} else {
 				aliasOutputChannel = nil
 			}
@@ -49,12 +49,6 @@ func (c *chainObj) recvLoop() {
 				c.handleOffLedgerRequestMsg(msg.(*messages.OffLedgerRequestMsgIn))
 			} else {
 				offLedgerRequestMsgChannel = nil
-			}
-		case msg, ok := <-requestAckMsgChannel:
-			if ok {
-				c.handleRequestAckPeerMsg(msg.(*messages.RequestAckMsgIn))
-			} else {
-				requestAckMsgChannel = nil
 			}
 		case msg, ok := <-missingRequestIDsMsgChannel:
 			if ok {
@@ -78,7 +72,6 @@ func (c *chainObj) recvLoop() {
 		if dismissChainMsgChannel == nil &&
 			aliasOutputChannel == nil &&
 			offLedgerRequestMsgChannel == nil &&
-			requestAckMsgChannel == nil &&
 			missingRequestIDsMsgChannel == nil &&
 			missingRequestMsgChannel == nil &&
 			timerTickMsgChannel == nil {
@@ -97,17 +90,17 @@ func (c *chainObj) handleDismissChain(msg DismissChainMsg) {
 	c.Dismiss(msg.Reason)
 }
 
-func (c *chainObj) EnqueueAliasOutput(chainOutput *iscp.AliasOutputWithID) {
+func (c *chainObj) EnqueueAliasOutput(chainOutput *isc.AliasOutputWithID) {
 	c.aliasOutputPipe.In() <- chainOutput
 	c.chainMetrics.CountMessages()
 }
 
 // handleAliasOutput processes the only chain output which exists on the chain's address
 // If necessary, it creates/changes/rotates committee object
-func (c *chainObj) handleAliasOutput(msg *iscp.AliasOutputWithID) {
+func (c *chainObj) handleAliasOutput(msg *isc.AliasOutputWithID) {
 	msgStateIndex := msg.GetStateIndex()
 	c.log.Debugf("handleAliasOutput output received: state index %v, ID %v",
-		msgStateIndex, iscp.OID(msg.ID()))
+		msgStateIndex, isc.OID(msg.ID()))
 	commitment, err := state.L1CommitmentFromAliasOutput(msg.GetAliasOutput())
 	if err != nil {
 		c.log.Error(xerrors.Errorf("handleAliasOutput: parsing L1 commitment failed %w", err))
@@ -115,6 +108,7 @@ func (c *chainObj) handleAliasOutput(msg *iscp.AliasOutputWithID) {
 	}
 	c.log.Debugf("handleAliasOutput: L1 commitment is %s", commitment)
 
+	var isRotation bool
 	if (c.lastSeenOutputStateIndex == nil) || (*c.lastSeenOutputStateIndex <= msgStateIndex) {
 		if c.lastSeenOutputStateIndex == nil {
 			c.log.Debugf("handleAliasOutput: received initial state output")
@@ -122,7 +116,6 @@ func (c *chainObj) handleAliasOutput(msg *iscp.AliasOutputWithID) {
 			c.log.Debugf("handleAliasOutput: received output, which is not older than the known one with index %v", *c.lastSeenOutputStateIndex)
 		}
 		cmt := c.getCommittee()
-		var isRotation bool
 		if cmt != nil {
 			isRotation, err = c.rotateCommitteeIfNeeded(msg, cmt)
 			if err != nil {
@@ -140,19 +133,24 @@ func (c *chainObj) handleAliasOutput(msg *iscp.AliasOutputWithID) {
 		if msgStateIndex != 0 && isRotation {
 			c.processChainTransition(&chain.ChainTransitionEventData{
 				IsGovernance:    true,
-				VirtualState:    c.lastSeenVirtualState,
+				VirtualState:    nil, // governance rotation doesn't produce a new virtual state
 				ChainOutput:     msg,
 				OutputTimestamp: time.Now(),
 			})
 		}
 	} else {
+		isRotation = false
 		c.log.Debugf("handleAliasOutput: received output, which is older than the known one with index %v; committee rotation/creation will not be performed", *c.lastSeenOutputStateIndex)
 	}
-	c.stateMgr.EnqueueAliasOutput(msg)
-	c.log.Debugf("handleAliasOutput: output %v passed to state manager", iscp.OID(msg.ID()))
+	if msgStateIndex != 0 && isRotation {
+		c.log.Debugf("handleAliasOutput: it is a rotation transition; skipping passing it to state manager")
+	} else {
+		c.stateMgr.EnqueueAliasOutput(msg)
+		c.log.Debugf("handleAliasOutput: output %v passed to state manager", isc.OID(msg.ID()))
+	}
 }
 
-func (c *chainObj) rotateCommitteeIfNeeded(anchorOutput *iscp.AliasOutputWithID, currentCmt chain.Committee) (bool, error) {
+func (c *chainObj) rotateCommitteeIfNeeded(anchorOutput *isc.AliasOutputWithID, currentCmt chain.Committee) (bool, error) {
 	currentCmtAddress := currentCmt.Address()
 	anchorOutputAddress := anchorOutput.GetStateAddress()
 	if currentCmtAddress.Equal(anchorOutputAddress) {
@@ -173,7 +171,7 @@ func (c *chainObj) rotateCommitteeIfNeeded(anchorOutput *iscp.AliasOutputWithID,
 	return true, err
 }
 
-func (c *chainObj) createCommitteeIfNeeded(anchorOutput *iscp.AliasOutputWithID) (bool, error) {
+func (c *chainObj) createCommitteeIfNeeded(anchorOutput *isc.AliasOutputWithID) (bool, error) {
 	// check if I am in the committee
 	stateControllerAddress := anchorOutput.GetStateAddress()
 	dkShare, err := c.getChainDKShare(stateControllerAddress)
@@ -228,7 +226,7 @@ func (c *chainObj) createNewCommitteeAndConsensus(dkShare tcrypto.DKShare) error
 	c.detachFromCommitteePeerMessagesFun = func() {
 		cmtPeerGroup.Detach(attachID)
 	}
-	c.log.Debugf("creating new consensus object...")
+	c.log.Debugf("createNewCommitteeAndConsensus: creating new consensus object...")
 	c.consensus = consensus.New(c, c.mempool, cmt, cmtPeerGroup, c.nodeConn, c.pullMissingRequestsFromCommittee, c.chainMetrics, c.wal)
 	c.setCommittee(cmt)
 	return nil
@@ -239,9 +237,16 @@ func (c *chainObj) EnqueueOffLedgerRequestMsg(msg *messages.OffLedgerRequestMsgI
 	c.chainMetrics.CountMessages()
 }
 
+// addToPeersHaveReq adds a peer to the list of known peers that have a given request, DOES NOT LOCK THE MUTEX
+func (c *chainObj) addToPeersHaveReq(reqID isc.RequestID, peer *cryptolib.PublicKey) {
+	if c.offLedgerPeersHaveReq[reqID] == nil {
+		c.offLedgerPeersHaveReq[reqID] = make(map[cryptolib.PublicKeyKey]bool)
+	}
+	c.offLedgerPeersHaveReq[reqID][peer.AsKey()] = true
+}
+
 func (c *chainObj) handleOffLedgerRequestMsg(msg *messages.OffLedgerRequestMsgIn) {
-	c.log.Debugf("handleOffLedgerRequestMsg message received from peer %v, reqID: %s", msg.SenderPubKey.AsString(), msg.Req.ID())
-	c.sendRequestAcknowledgementMsg(msg.Req.ID(), msg.SenderPubKey)
+	c.log.Debugf("handleOffLedgerRequestMsg message received from peer %v, reqID: %s", msg.SenderPubKey.String(), msg.Req.ID())
 
 	if err := c.validateRequest(msg.Req); err != nil {
 		// this means some node broadcasted an invalid request (bad chainID or signature)
@@ -249,6 +254,11 @@ func (c *chainObj) handleOffLedgerRequestMsg(msg *messages.OffLedgerRequestMsgIn
 		c.log.Errorf("handleOffLedgerRequestMsg message ignored: %v", err)
 		return
 	}
+
+	c.offLedgerPeersHaveReqMutex.Lock()
+	c.addToPeersHaveReq(msg.Req.ID(), msg.SenderPubKey)
+	c.offLedgerPeersHaveReqMutex.Unlock()
+
 	if !c.mempool.ReceiveRequest(msg.Req) {
 		c.log.Errorf("handleOffLedgerRequestMsg message ignored: mempool hasn't accepted it")
 		return
@@ -257,23 +267,14 @@ func (c *chainObj) handleOffLedgerRequestMsg(msg *messages.OffLedgerRequestMsgIn
 	c.log.Debugf("handleOffLedgerRequestMsg message added to mempool and broadcasted: reqID: %s", msg.Req.ID().String())
 }
 
-func (c *chainObj) sendRequestAcknowledgementMsg(reqID iscp.RequestID, peerPubKey *cryptolib.PublicKey) {
-	if peerPubKey == nil {
-		return
-	}
-	c.log.Debugf("sendRequestAcknowledgementMsg: reqID: %s, peerID: %s", reqID, peerPubKey.AsString())
-	msg := &messages.RequestAckMsg{ReqID: &reqID}
-	c.chainPeers.SendMsgByPubKey(peerPubKey, peering.PeerMessageReceiverChain, chain.PeerMsgTypeRequestAck, msg.Bytes())
-}
-
-func (c *chainObj) validateRequest(req iscp.OffLedgerRequest) error {
+func (c *chainObj) validateRequest(req isc.OffLedgerRequest) error {
 	if !req.ChainID().Equals(c.ID()) {
 		return fmt.Errorf("chainID mismatch")
 	}
 	return req.VerifySignature()
 }
 
-func (c *chainObj) broadcastOffLedgerRequest(req iscp.OffLedgerRequest) {
+func (c *chainObj) broadcastOffLedgerRequest(req isc.OffLedgerRequest) {
 	c.log.Debugf("broadcastOffLedgerRequest: toNPeers: %d, reqID: %s", c.offledgerBroadcastUpToNPeers, req.ID())
 	msg := &messages.OffLedgerRequestMsg{
 		ChainID: c.chainID,
@@ -286,22 +287,26 @@ func (c *chainObj) broadcastOffLedgerRequest(req iscp.OffLedgerRequest) {
 		getPeerPubKeys = cmt.GetRandomValidators
 	}
 
-	sendMessage := func(ackPeers []*cryptolib.PublicKey) {
+	sendMessage := func(peersThatHaveTheRequest map[cryptolib.PublicKeyKey]bool) {
 		peerPubKeys := getPeerPubKeys(c.offledgerBroadcastUpToNPeers)
 		for _, peerPubKey := range peerPubKeys {
-			if shouldSendToPeer(peerPubKey, ackPeers) {
-				c.log.Debugf("sending offledger request ID: reqID: %s, peerPubKey: %s", req.ID(), peerPubKey.AsString())
-				c.chainPeers.SendMsgByPubKey(peerPubKey, peering.PeerMessageReceiverChain, chain.PeerMsgTypeOffLedgerRequest, msg.Bytes())
+			if peersThatHaveTheRequest[peerPubKey.AsKey()] {
+				// this peer already has the request
+				c.log.Debugf("broadcastOffLedgerRequest: skipping send offledger request ID: %s to peerPubKey: %s.", req.ID(), peerPubKey.String())
+				continue
 			}
+			c.log.Debugf("broadcastOffLedgerRequest: sending offledger request ID: reqID: %s, peerPubKey: %s", req.ID(), peerPubKey.String())
+			c.chainPeers.SendMsgByPubKey(peerPubKey, peering.PeerMessageReceiverChain, chain.PeerMsgTypeOffLedgerRequest, msg.Bytes())
+			c.addToPeersHaveReq(msg.Req.ID(), peerPubKey)
 		}
 	}
 
 	ticker := time.NewTicker(c.offledgerBroadcastInterval)
 	stopBroadcast := func() {
-		c.offLedgerReqsAcksMutex.Lock()
-		delete(c.offLedgerReqsAcks, req.ID())
-		c.offLedgerReqsAcksMutex.Unlock()
 		ticker.Stop()
+		c.offLedgerPeersHaveReqMutex.Lock()
+		delete(c.offLedgerPeersHaveReq, req.ID())
+		c.offLedgerPeersHaveReqMutex.Unlock()
 	}
 
 	go func() {
@@ -312,39 +317,27 @@ func (c *chainObj) broadcastOffLedgerRequest(req iscp.OffLedgerRequest) {
 			if !c.mempool.HasRequest(req.ID()) {
 				return
 			}
-			c.offLedgerReqsAcksMutex.RLock()
-			ackPeers := c.offLedgerReqsAcks[req.ID()]
-			c.offLedgerReqsAcksMutex.RUnlock()
-			if cmt != nil && len(ackPeers) >= int(cmt.Size())-1 {
-				// this node is part of the committee and the message has already been received by every other committee node
+
+			shouldStop := func() bool {
+				// deep copy the list of peers that have the request (otherwise we get a pointer to the map instead)
+				c.offLedgerPeersHaveReqMutex.Lock()
+				defer c.offLedgerPeersHaveReqMutex.Unlock()
+
+				peersThatHaveTheRequest := c.offLedgerPeersHaveReq[req.ID()]
+				if cmt != nil && len(peersThatHaveTheRequest) >= int(cmt.Size())-1 {
+					// this node is part of the committee and the message has already been received by every other committee node
+					return true
+				}
+
+				sendMessage(peersThatHaveTheRequest)
+				return false
+			}()
+
+			if shouldStop {
 				return
 			}
-			sendMessage(ackPeers)
 		}
 	}()
-}
-
-func shouldSendToPeer(peerPubKey *cryptolib.PublicKey, ackPeers []*cryptolib.PublicKey) bool {
-	for _, p := range ackPeers {
-		if p.Equals(peerPubKey) {
-			return false
-		}
-	}
-	return true
-}
-
-func (c *chainObj) EnqueueRequestAckMsg(msg *messages.RequestAckMsgIn) {
-	c.requestAckPeerMsgPipe.In() <- msg
-	c.chainMetrics.CountMessages()
-}
-
-func (c *chainObj) handleRequestAckPeerMsg(msg *messages.RequestAckMsgIn) {
-	c.log.Debugf("handleRequestAckPeerMsg message received from peer %v, reqID: %s", msg.SenderPubKey.AsString(), msg.ReqID)
-	c.offLedgerReqsAcksMutex.Lock()
-	defer c.offLedgerReqsAcksMutex.Unlock()
-	c.offLedgerReqsAcks[*msg.ReqID] = append(c.offLedgerReqsAcks[*msg.ReqID], msg.SenderPubKey)
-	c.chainMetrics.CountRequestAckMessages()
-	c.log.Debugf("handleRequestAckPeerMsg comleted: reqID: %s", msg.ReqID.String())
 }
 
 func (c *chainObj) EnqueueMissingRequestIDsMsg(msg *messages.MissingRequestIDsMsgIn) {
@@ -353,7 +346,7 @@ func (c *chainObj) EnqueueMissingRequestIDsMsg(msg *messages.MissingRequestIDsMs
 }
 
 func (c *chainObj) handleMissingRequestIDsMsg(msg *messages.MissingRequestIDsMsgIn) {
-	c.log.Debugf("handleMissingRequestIDsMsg message received from peer %v, number of reqIDs: %v", msg.SenderPubKey.AsString(), len(msg.IDs))
+	c.log.Debugf("handleMissingRequestIDsMsg message received from peer %v, number of reqIDs: %v", msg.SenderPubKey.String(), len(msg.IDs))
 	if !c.pullMissingRequestsFromCommittee {
 		c.log.Warnf("handleMissingRequestIDsMsg ignored: pull from committee disabled")
 		return
@@ -363,7 +356,7 @@ func (c *chainObj) handleMissingRequestIDsMsg(msg *messages.MissingRequestIDsMsg
 		if req := c.mempool.GetRequest(reqID); req != nil {
 			resultMsg := &messages.MissingRequestMsg{Request: req}
 			c.chainPeers.SendMsgByPubKey(msg.SenderPubKey, peering.PeerMessageReceiverChain, chain.PeerMsgTypeMissingRequest, resultMsg.Bytes())
-			c.log.Warnf("handleMissingRequestIDsMsg: reqID %s sent to %v.", reqID, msg.SenderPubKey.AsString())
+			c.log.Warnf("handleMissingRequestIDsMsg: reqID %s sent to %v.", reqID, msg.SenderPubKey.String())
 		} else {
 			c.log.Warnf("handleMissingRequestIDsMsg: reqID %s not found.", reqID.String())
 		}

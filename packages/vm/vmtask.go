@@ -1,11 +1,13 @@
 package vm
 
 import (
+	"time"
+
 	"github.com/iotaledger/hive.go/logger"
 	iotago "github.com/iotaledger/iota.go/v3"
 	"github.com/iotaledger/wasp/packages/hashing"
-	"github.com/iotaledger/wasp/packages/iscp"
-	"github.com/iotaledger/wasp/packages/iscp/coreutil"
+	"github.com/iotaledger/wasp/packages/isc"
+	"github.com/iotaledger/wasp/packages/isc/coreutil"
 	"github.com/iotaledger/wasp/packages/kv/dict"
 	"github.com/iotaledger/wasp/packages/state"
 	"github.com/iotaledger/wasp/packages/vm/core/blocklog"
@@ -27,10 +29,10 @@ type VMTask struct {
 	AnchorOutput       *iotago.AliasOutput
 	AnchorOutputID     iotago.OutputID
 	SolidStateBaseline coreutil.StateBaseline
-	Requests           []iscp.Request
-	TimeAssumption     iscp.TimeData
+	Requests           []isc.Request
+	TimeAssumption     time.Time
 	Entropy            hashing.HashValue
-	ValidatorFeeTarget iscp.AgentID
+	ValidatorFeeTarget isc.AgentID
 	// If EstimateGasMode is enabled, gas fee will be calculated but not charged
 	EstimateGasMode      bool
 	EnableGasBurnLogging bool // for testing and Solo only
@@ -61,17 +63,15 @@ type VMTask struct {
 
 type RequestResult struct {
 	// Request is the corresponding request in the task
-	Request iscp.Request
+	Request isc.Request
 	// Return is the return value of the call
 	Return dict.Dict
-	// Error is the error produced by the call, if any
-	Error error
 	// Receipt is the receipt produced after executing the request
 	Receipt *blocklog.RequestReceipt
 }
 
-func (task *VMTask) GetProcessedRequestIDs() []iscp.RequestID {
-	ret := make([]iscp.RequestID, len(task.Results))
+func (task *VMTask) GetProcessedRequestIDs() []isc.RequestID {
+	ret := make([]isc.RequestID, len(task.Results))
 	for i, res := range task.Results {
 		ret[i] = res.Request.ID()
 	}

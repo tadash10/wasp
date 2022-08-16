@@ -6,7 +6,7 @@ import (
 
 	"github.com/iotaledger/wasp/client/chainclient"
 	"github.com/iotaledger/wasp/contracts/native/inccounter"
-	"github.com/iotaledger/wasp/packages/iscp"
+	"github.com/iotaledger/wasp/packages/isc"
 	"github.com/iotaledger/wasp/packages/kv/codec"
 	"github.com/iotaledger/wasp/packages/kv/dict"
 	"github.com/iotaledger/wasp/packages/vm/core/governance"
@@ -19,14 +19,14 @@ func TestMaintenance(t *testing.T) {
 
 	ownerWallet, ownerAddr, err := env.Clu.NewKeyPairWithFunds()
 	require.NoError(t, err)
-	ownerAgentID := iscp.NewAgentID(ownerAddr)
-	env.DepositFunds(10*iscp.Mi, ownerWallet)
+	ownerAgentID := isc.NewAgentID(ownerAddr)
+	env.DepositFunds(10*isc.Million, ownerWallet)
 	ownerSCClient := env.Chain.SCClient(governance.Contract.Hname(), ownerWallet)
 	ownerIncCounterSCClient := env.Chain.SCClient(nativeIncCounterSCHname, ownerWallet)
 
 	userWallet, _, err := env.Clu.NewKeyPairWithFunds()
 	require.NoError(t, err)
-	env.DepositFunds(10*iscp.Mi, userWallet)
+	env.DepositFunds(10*isc.Million, userWallet)
 	userSCClient := env.Chain.SCClient(governance.Contract.Hname(), userWallet)
 	userIncCounterSCClient := env.Chain.SCClient(nativeIncCounterSCHname, userWallet)
 
@@ -104,9 +104,7 @@ func TestMaintenance(t *testing.T) {
 	// assert that block number is still the same
 	blockIndex2, err := env.Chain.BlockIndex()
 	require.NoError(t, err)
-	// TODO this will fail for now, we need the fix to not produce empty blocks
-	// require.EqualValues(t, blockIndex, blockIndex2)
-	println(blockIndex, blockIndex2)
+	require.EqualValues(t, blockIndex, blockIndex2)
 
 	// calls to governance are processed (try changing fees for example)
 	newGasFeePolicy := gas.GasFeePolicy{
@@ -161,6 +159,6 @@ func TestMaintenance(t *testing.T) {
 		require.NoError(t, err)
 		_, err = env.Clu.MultiClient().WaitUntilRequestProcessedSuccessfully(env.Chain.ChainID, notProccessedReq2.ID(), 10*time.Second)
 		require.NoError(t, err)
-		require.EqualValues(t, 2, env.getCounter(nativeIncCounterSCHname))
+		require.EqualValues(t, 2, env.getNativeContractCounter(nativeIncCounterSCHname))
 	}
 }

@@ -29,10 +29,9 @@ func XORBytes(dst, a, b []byte) int {
 	return n
 }
 
-const (
-	wordSize          = int(unsafe.Sizeof(uintptr(0)))
-	supportsUnaligned = runtime.GOARCH == "386" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" || runtime.GOARCH == "s390x"
-)
+const wordSize = int(unsafe.Sizeof(uintptr(0)))
+
+const supportsUnaligned = runtime.GOARCH == "386" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" || runtime.GOARCH == "s390x"
 
 // fastXORBytes xors in bulk. It only works on architectures that support unaligned read/writes.
 // n needs to be smaller or equal than the length of a and b.
