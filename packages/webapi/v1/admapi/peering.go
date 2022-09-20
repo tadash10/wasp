@@ -4,6 +4,9 @@
 package admapi
 
 import (
+	"github.com/iotaledger/wasp/packages/webapi/v1/httperrors"
+	"github.com/iotaledger/wasp/packages/webapi/v1/model"
+	"github.com/iotaledger/wasp/packages/webapi/v1/routes"
 	"net/http"
 
 	"github.com/mr-tron/base58"
@@ -13,9 +16,6 @@ import (
 
 	"github.com/iotaledger/wasp/packages/cryptolib"
 	"github.com/iotaledger/wasp/packages/peering"
-	"github.com/iotaledger/wasp/packages/webapi/httperrors"
-	"github.com/iotaledger/wasp/packages/webapi/model"
-	"github.com/iotaledger/wasp/packages/webapi/routes"
 )
 
 func addPeeringEndpoints(adm echoswagger.ApiGroup, network peering.NetworkProvider, tnm peering.TrustedNetworkManager) {

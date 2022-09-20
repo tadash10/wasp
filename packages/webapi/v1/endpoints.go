@@ -1,9 +1,15 @@
 // Copyright 2020 IOTA Stiftung
 // SPDX-License-Identifier: Apache-2.0
 
-package webapi
+package v1
 
 import (
+	"github.com/iotaledger/wasp/packages/webapi/v1/admapi"
+	"github.com/iotaledger/wasp/packages/webapi/v1/evm"
+	"github.com/iotaledger/wasp/packages/webapi/v1/info"
+	"github.com/iotaledger/wasp/packages/webapi/v1/reqstatus"
+	"github.com/iotaledger/wasp/packages/webapi/v1/request"
+	"github.com/iotaledger/wasp/packages/webapi/v1/state"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -18,12 +24,6 @@ import (
 	"github.com/iotaledger/wasp/packages/peering"
 	"github.com/iotaledger/wasp/packages/registry"
 	"github.com/iotaledger/wasp/packages/wal"
-	"github.com/iotaledger/wasp/packages/webapi/admapi"
-	"github.com/iotaledger/wasp/packages/webapi/evm"
-	"github.com/iotaledger/wasp/packages/webapi/info"
-	"github.com/iotaledger/wasp/packages/webapi/reqstatus"
-	"github.com/iotaledger/wasp/packages/webapi/request"
-	"github.com/iotaledger/wasp/packages/webapi/state"
 )
 
 var log *loggerpkg.Logger

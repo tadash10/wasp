@@ -6,12 +6,11 @@ package dashboard
 import (
 	_ "embed"
 	"encoding/hex"
+	"github.com/iotaledger/wasp/packages/webapi/v1/routes"
 	"html/template"
 	"strings"
 
 	"github.com/iotaledger/wasp/packages/authentication"
-	"github.com/iotaledger/wasp/packages/webapi/routes"
-
 	"github.com/labstack/echo/v4"
 	"github.com/mr-tron/base58"
 

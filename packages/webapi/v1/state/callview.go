@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/iotaledger/wasp/packages/webapi/v1/httperrors"
+	"github.com/iotaledger/wasp/packages/webapi/v1/routes"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -17,8 +19,6 @@ import (
 	"github.com/iotaledger/wasp/packages/kv"
 	"github.com/iotaledger/wasp/packages/kv/dict"
 	"github.com/iotaledger/wasp/packages/kv/optimism"
-	"github.com/iotaledger/wasp/packages/webapi/httperrors"
-	"github.com/iotaledger/wasp/packages/webapi/routes"
 )
 
 type callViewService struct {

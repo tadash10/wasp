@@ -1,6 +1,9 @@
 package reqstatus
 
 import (
+	"github.com/iotaledger/wasp/packages/webapi/v1/model"
+	"github.com/iotaledger/wasp/packages/webapi/v1/routes"
+	"github.com/iotaledger/wasp/packages/webapi/v1/testutil"
 	"net/http"
 	"testing"
 
@@ -14,9 +17,6 @@ import (
 	"github.com/iotaledger/wasp/packages/isc"
 	"github.com/iotaledger/wasp/packages/kv/dict"
 	"github.com/iotaledger/wasp/packages/vm/core/blocklog"
-	"github.com/iotaledger/wasp/packages/webapi/model"
-	"github.com/iotaledger/wasp/packages/webapi/routes"
-	"github.com/iotaledger/wasp/packages/webapi/testutil"
 )
 
 type mockChain struct{}

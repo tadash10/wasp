@@ -1,6 +1,9 @@
 package request
 
 import (
+	"github.com/iotaledger/wasp/packages/webapi/v1/model"
+	"github.com/iotaledger/wasp/packages/webapi/v1/routes"
+	"github.com/iotaledger/wasp/packages/webapi/v1/testutil"
 	"net/http"
 	"testing"
 	"time"
@@ -18,9 +21,6 @@ import (
 	"github.com/iotaledger/wasp/packages/testutil/testlogger"
 	"github.com/iotaledger/wasp/packages/util/expiringcache"
 	"github.com/iotaledger/wasp/packages/vm/core/blocklog"
-	"github.com/iotaledger/wasp/packages/webapi/model"
-	"github.com/iotaledger/wasp/packages/webapi/routes"
-	"github.com/iotaledger/wasp/packages/webapi/testutil"
 )
 
 type mockedChain struct {

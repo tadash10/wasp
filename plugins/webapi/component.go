@@ -3,6 +3,9 @@ package webapi
 import (
 	"context"
 	"errors"
+	"github.com/iotaledger/wasp/packages/webapi/v1"
+	"github.com/iotaledger/wasp/packages/webapi/v1/httperrors"
+	v2 "github.com/iotaledger/wasp/packages/webapi/v2"
 	"net/http"
 	"time"
 
@@ -21,8 +24,6 @@ import (
 	"github.com/iotaledger/wasp/packages/parameters"
 	"github.com/iotaledger/wasp/packages/wal"
 	"github.com/iotaledger/wasp/packages/wasp"
-	"github.com/iotaledger/wasp/packages/webapi"
-	"github.com/iotaledger/wasp/packages/webapi/httperrors"
 	"github.com/iotaledger/wasp/plugins/metrics"
 )
 
@@ -127,8 +128,8 @@ func initWebAPI() {
 	if deps.MetricsEnabled {
 		allMetrics = metrics.AllMetrics()
 	}
-	webapi.Init(
-		Plugin.App().NewLogger("WebAPI"),
+	v1.Init(
+		Plugin.App().NewLogger("WebAPI/v1"),
 		Server,
 		network,
 		tnm,
@@ -145,4 +146,7 @@ func initWebAPI() {
 		deps.APICacheTTL,
 		deps.PublisherPort,
 	)
+
+	v2.Init(Plugin.App().NewLogger("WebAPI/v2"), Server, registry.DefaultRegistry,
+		chains.AllChains, deps.WAL, allMetrics)
 }

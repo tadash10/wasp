@@ -5,13 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/iotaledger/wasp/packages/webapi/v1/model"
 	"io"
 	"net/http"
 	"strings"
 
 	"golang.org/x/xerrors"
-
-	"github.com/iotaledger/wasp/packages/webapi/model"
 )
 
 // WaspClient allows to make requests to the Wasp web API.

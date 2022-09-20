@@ -2,10 +2,10 @@ package client
 
 import (
 	"encoding/hex"
+	"github.com/iotaledger/wasp/packages/webapi/v1/routes"
 	"net/http"
 
 	"github.com/iotaledger/wasp/packages/isc"
-	"github.com/iotaledger/wasp/packages/webapi/routes"
 )
 
 // StateGet fetches the raw value associated with the given key in the chain state
