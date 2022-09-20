@@ -8,6 +8,7 @@ wasp.log
 /submsg
 /vendor
 waspdb/
+wal/
 cluster-data/
 dist/
 .idea/
