@@ -116,6 +116,10 @@ func initWebAPI() {
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
 		AllowMethods: []string{"*"},
 	}))
+	Server.SetExternalDocs("Find out more about Swagger", "http://swagger.io").
+		SetResponseContentType("application/xml", "application/json").
+		SetUI(echoswagger.UISetting{DetachSpec: true, HideTop: true}).
+		SetScheme("https", "http")
 
 	network := peering.DefaultNetworkProvider()
 	if network == nil {
