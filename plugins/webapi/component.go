@@ -128,6 +128,7 @@ func initWebAPI() {
 	if deps.MetricsEnabled {
 		allMetrics = metrics.AllMetrics()
 	}
+
 	v1.Init(
 		Plugin.App().NewLogger("WebAPI/v1"),
 		Server,
@@ -147,6 +148,5 @@ func initWebAPI() {
 		deps.PublisherPort,
 	)
 
-	v2.Init(Plugin.App().NewLogger("WebAPI/v2"), Server, registry.DefaultRegistry,
-		chains.AllChains, deps.WAL, allMetrics)
+	v2.Init(Plugin.App().NewLogger("WebAPI/v2"), Server, chains.AllChains, allMetrics, network, registry.DefaultRegistry,  deps.WAL)
 }
