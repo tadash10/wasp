@@ -3,11 +3,12 @@ package webapi
 import (
 	"context"
 	"errors"
-	"github.com/iotaledger/wasp/packages/webapi/v1"
-	"github.com/iotaledger/wasp/packages/webapi/v1/httperrors"
-	v2 "github.com/iotaledger/wasp/packages/webapi/v2"
 	"net/http"
 	"time"
+
+	v1 "github.com/iotaledger/wasp/packages/webapi/v1"
+	"github.com/iotaledger/wasp/packages/webapi/v1/httperrors"
+	v2 "github.com/iotaledger/wasp/packages/webapi/v2"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -119,7 +120,7 @@ func initWebAPI() {
 	Server.SetExternalDocs("Find out more about Swagger", "http://swagger.io").
 		SetResponseContentType("application/xml", "application/json").
 		SetUI(echoswagger.UISetting{DetachSpec: true, HideTop: true}).
-		SetScheme("https", "http")
+		SetScheme("http", "https")
 
 	network := peering.DefaultNetworkProvider()
 	if network == nil {
@@ -152,5 +153,5 @@ func initWebAPI() {
 		deps.PublisherPort,
 	)
 
-	v2.Init(Plugin.App().NewLogger("WebAPI/v2"), Server, chains.AllChains, allMetrics, network, registry.DefaultRegistry,  deps.WAL)
+	v2.Init(Plugin.App().NewLogger("WebAPI/v2"), Server, chains.AllChains, allMetrics, network, registry.DefaultRegistry, deps.WAL)
 }
