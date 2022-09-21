@@ -117,9 +117,10 @@ func initWebAPI() {
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
 		AllowMethods: []string{"*"},
 	}))
-	Server.SetExternalDocs("Find out more about Swagger", "http://swagger.io").
+	Server.AddSecurityAPIKey("Authorization", "JWT Token", echoswagger.SecurityInHeader).
+		SetExternalDocs("Find out more about Wasp", "https://wiki.iota.org/smart-contracts/overview").
 		SetResponseContentType("application/xml", "application/json").
-		SetUI(echoswagger.UISetting{DetachSpec: true, HideTop: true}).
+		SetUI(echoswagger.UISetting{DetachSpec: false, HideTop: false}).
 		SetScheme("http", "https")
 
 	network := peering.DefaultNetworkProvider()
