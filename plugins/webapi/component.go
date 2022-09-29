@@ -6,8 +6,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/iotaledger/wasp/packages/webapi"
+
 	v1 "github.com/iotaledger/wasp/packages/webapi/v1"
-	"github.com/iotaledger/wasp/packages/webapi/v1/httperrors"
 	v2 "github.com/iotaledger/wasp/packages/webapi/v2"
 
 	"github.com/labstack/echo/v4"
@@ -91,9 +92,12 @@ func worker(ctx context.Context) {
 	}
 
 	Plugin.LogInfof("Stopping %s ...", Plugin.Name)
+
 	defer Plugin.LogInfof("Stopping %s ... done", Plugin.Name)
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
+
 	if err := server.Shutdown(ctx); err != nil { //nolint:contextcheck // false positive
 		Plugin.LogErrorf("error stopping: %s", err)
 	}
@@ -106,17 +110,23 @@ func initWebAPI() {
 		Version:     wasp.Version,
 	})
 
+	Server.SetRequestContentType(echo.MIMEApplicationJSON)
+	Server.SetResponseContentType(echo.MIMEApplicationJSON)
+
 	Server.Echo().HideBanner = true
 	Server.Echo().HidePort = true
-	Server.Echo().HTTPErrorHandler = httperrors.HTTPErrorHandler
+	Server.Echo().HTTPErrorHandler = webapi.CompatibilityHTTPErrorHandler
+
 	Server.Echo().Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
 		Format: `${time_rfc3339_nano} ${remote_ip} ${method} ${uri} ${status} error="${error}"` + "\n",
 	}))
+
 	Server.Echo().Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"*"},
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
 		AllowMethods: []string{"*"},
 	}))
+
 	Server.AddSecurityAPIKey("Authorization", "JWT Token", echoswagger.SecurityInHeader).
 		SetExternalDocs("Find out more about Wasp", "https://wiki.iota.org/smart-contracts/overview").
 		SetResponseContentType("application/xml", "application/json").
@@ -127,10 +137,12 @@ func initWebAPI() {
 	if network == nil {
 		panic("dependency NetworkProvider is missing in WebAPI")
 	}
+
 	tnm := peering.DefaultTrustedNetworkManager()
 	if tnm == nil {
 		panic("dependency TrustedNetworkManager is missing in WebAPI")
 	}
+
 	if deps.MetricsEnabled {
 		allMetrics = metrics.AllMetrics()
 	}

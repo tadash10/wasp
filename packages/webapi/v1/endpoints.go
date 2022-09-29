@@ -4,15 +4,15 @@
 package v1
 
 import (
+	"time"
+
 	"github.com/iotaledger/wasp/packages/webapi/v1/admapi"
 	"github.com/iotaledger/wasp/packages/webapi/v1/evm"
 	"github.com/iotaledger/wasp/packages/webapi/v1/info"
 	"github.com/iotaledger/wasp/packages/webapi/v1/reqstatus"
 	"github.com/iotaledger/wasp/packages/webapi/v1/request"
 	"github.com/iotaledger/wasp/packages/webapi/v1/state"
-	"time"
 
-	"github.com/labstack/echo/v4"
 	"github.com/pangpanglabs/echoswagger/v2"
 
 	loggerpkg "github.com/iotaledger/hive.go/core/logger"
@@ -45,9 +45,6 @@ func Init(
 	publisherPort int,
 ) {
 	log = logger
-
-	server.SetRequestContentType(echo.MIMEApplicationJSON)
-	server.SetResponseContentType(echo.MIMEApplicationJSON)
 
 	pub := server.Group("public", "v1").SetDescription("Public endpoints")
 	addWebSocketEndpoint(pub, log)

@@ -28,7 +28,7 @@ type nodeconnChain struct {
 	onLedgerRequestCh          chan isc.OnLedgerRequest
 	onLedgerRequestStopCh      chan bool
 	txInclusionStateIsHandled  bool
-	txInclusionStateCh         chan *txInclusionStateMsg
+	txInclusionStateCh         chan *TxInclusionStateMsg
 	txInclusionStateStopCh     chan bool
 	txInclusionStateHandlerRef *events.Closure
 	milestonesHandlerRef       *events.Closure
@@ -36,9 +36,14 @@ type nodeconnChain struct {
 	mutex                      sync.Mutex // NOTE: mutexes might also be separated for aliasOutput, onLedgerRequest and txInclusionState; however, it is not going to be used heavily, so the common one is used.
 }
 
-type txInclusionStateMsg struct {
+type TxInclusionStateMsg struct {
 	txID  iotago.TransactionID
 	state string
+}
+
+type StateTransaction struct {
+	StateIndex  uint32
+	Transaction *iotago.Transaction
 }
 
 var _ chain.ChainNodeConnection = &nodeconnChain{}
@@ -53,7 +58,7 @@ func NewChainNodeConnection(chainID *isc.ChainID, nc chain.NodeConnection, log *
 		aliasOutputStopCh:      make(chan bool),
 		onLedgerRequestCh:      make(chan isc.OnLedgerRequest),
 		onLedgerRequestStopCh:  make(chan bool),
-		txInclusionStateCh:     make(chan *txInclusionStateMsg),
+		txInclusionStateCh:     make(chan *TxInclusionStateMsg),
 		txInclusionStateStopCh: make(chan bool),
 		metrics:                nc.GetMetrics().NewMessagesMetrics(chainID),
 	}
@@ -120,7 +125,7 @@ func (nccT *nodeconnChain) outputHandler(outputID iotago.OutputID, output iotago
 func (nccT *nodeconnChain) txInclusionStateHandler(txID iotago.TransactionID, state string) {
 	txIDStr := isc.TxID(txID)
 	nccT.log.Debugf("handling inclusion state of tx ID %v: %v", txIDStr, state)
-	nccT.txInclusionStateCh <- &txInclusionStateMsg{
+	nccT.txInclusionStateCh <- &TxInclusionStateMsg{
 		txID:  txID,
 		state: state,
 	}
@@ -244,10 +249,7 @@ func (nccT *nodeconnChain) detachFromMilestones() {
 }
 
 func (nccT *nodeconnChain) PublishStateTransaction(stateIndex uint32, tx *iotago.Transaction) error {
-	nccT.metrics.GetOutPublishStateTransaction().CountLastMessage(struct {
-		StateIndex  uint32
-		Transaction *iotago.Transaction
-	}{
+	nccT.metrics.GetOutPublishStateTransaction().CountLastMessage(StateTransaction{
 		StateIndex:  stateIndex,
 		Transaction: tx,
 	})
