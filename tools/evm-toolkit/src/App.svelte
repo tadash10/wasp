@@ -1,29 +1,43 @@
 <script>
-	import Withdraw from './Withdraw.svelte';
+	import Deposit from './components/deposit/Deposit.svelte';
+  import Withdraw from './components/withdraw/Withdraw.svelte';
   import { SvelteToast } from '@zerodevx/svelte-toast'
 </script>
 
 <main>  
-  <div class="item"><Withdraw /></div>
-  <div class="item"><Withdraw /></div>
+  <div class="item">
+    <h2>Deposit</h2>
+    <Deposit />
+  </div>
+  <div class="item">
+    <h2>Withdraw</h2>
+    <Withdraw />
+  </div>
 </main>
 <SvelteToast/>
 
 <style>
+  h2 {
+    margin: 15px;
+  }
   main {
-    display: flex;
-    flex-direction: column;
+    display: flex; 
+    flex: 1 1 auto;
+    flex-direction: row;
+    justify-content: center;
   }
 
   .item {
-    justify-content: center;
-    justify-items: center;
     flex-grow: 1;
+    max-width: 900px;
   }
 
-  @media (min-width: 1000px) {
+  @media (max-width: 900px) {
     main {
-      flex-direction: row;
+      flex-direction: column;
+    }
+    .item {
+      max-width: 450x;
     }
   }
 
