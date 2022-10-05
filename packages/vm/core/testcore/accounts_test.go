@@ -712,7 +712,7 @@ func TestWithdrawDepositNativeTokens(t *testing.T) {
 		v.env.AssertL1NativeTokens(v.userAddr, v.tokenID, 100)
 		v.ch.AssertL2NativeTokens(v.userAgentID, v.tokenID, 0)
 
-		err = v.ch.DepositAssetsToL2(isc.NewEmptyAssets().AddNativeTokens(*v.tokenID, 50), v.user)
+		err = v.ch.DepositAssetsToL2(isc.NewEmptyFungibleTokens().AddNativeTokens(*v.tokenID, 50), v.user)
 		require.NoError(t, err)
 		v.env.AssertL1NativeTokens(v.userAddr, v.tokenID, 50)
 		v.ch.AssertL2NativeTokens(v.userAgentID, v.tokenID, 50)
@@ -736,7 +736,7 @@ func TestWithdrawDepositNativeTokens(t *testing.T) {
 		v.env.AssertL1NativeTokens(v.userAddr, v.tokenID, 100)
 		v.ch.AssertL2NativeTokens(v.userAgentID, v.tokenID, 0)
 
-		err = v.ch.DepositAssetsToL2(isc.NewEmptyAssets().AddNativeTokens(*v.tokenID, 1), v.user)
+		err = v.ch.DepositAssetsToL2(isc.NewEmptyFungibleTokens().AddNativeTokens(*v.tokenID, 1), v.user)
 		require.NoError(t, err)
 		v.printBalances("AFTER DEPOSIT 1")
 
@@ -777,7 +777,7 @@ func TestWithdrawDepositNativeTokens(t *testing.T) {
 		v.env.AssertL1NativeTokens(v.userAddr, v.tokenID, 100)
 		v.ch.AssertL2NativeTokens(v.userAgentID, v.tokenID, 0)
 
-		err = v.ch.DepositAssetsToL2(isc.NewEmptyAssets().AddNativeTokens(*v.tokenID, 50), v.user)
+		err = v.ch.DepositAssetsToL2(isc.NewEmptyFungibleTokens().AddNativeTokens(*v.tokenID, 50), v.user)
 		require.NoError(t, err)
 		v.env.AssertL1NativeTokens(v.userAddr, v.tokenID, 50)
 		v.ch.AssertL2NativeTokens(v.userAgentID, v.tokenID, 50)
@@ -1188,4 +1188,25 @@ func TestAllowanceNotEnoughFunds(t *testing.T) {
 		receipt := ch.LastReceipt()
 		require.EqualValues(t, gas.DefaultGasFeePolicy().MinFee(), receipt.GasFeeCharged)
 	}
+}
+
+func TestDepositWithNoGasBudget(t *testing.T) {
+	env := solo.New(t, &solo.InitOptions{AutoAdjustStorageDeposit: true})
+	senderWallet, _ := env.NewKeyPairWithFunds(env.NewSeedFromIndex(11))
+	ch := env.NewChain()
+
+	// try to deposit with 0 gas budget
+	_, err := ch.PostRequestSync(
+		solo.NewCallParams(accounts.Contract.Name, accounts.FuncDeposit.Name).
+			WithFungibleTokens(isc.NewFungibleBaseTokens(2*isc.Million)).
+			WithGasBudget(0),
+		senderWallet,
+	)
+	require.NoError(t, err)
+
+	rec := ch.LastReceipt()
+	// request should succeed, while using gas > 0, the gasBudget should be correct in the receipt
+	require.Nil(t, rec.Error)
+	require.NotZero(t, rec.GasBurned)
+	require.EqualValues(t, gas.MinGasPerRequest, rec.GasBudget)
 }
