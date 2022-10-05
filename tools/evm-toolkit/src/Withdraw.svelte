@@ -2,7 +2,7 @@
   import { IotaWallet } from './lib/iota_wallet';
   import { SendFundsTransaction } from './lib/send_funds_transaction';
 
-  import { SvelteToast, toast } from '@zerodevx/svelte-toast'
+  import { toast } from '@zerodevx/svelte-toast'
   import { networkOptions } from '../networks';
 
   const ChainAddressLength: number = 63;
