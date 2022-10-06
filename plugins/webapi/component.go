@@ -166,5 +166,5 @@ func initWebAPI() {
 		deps.PublisherPort,
 	)
 
-	v2.Init(Plugin.App().NewLogger("WebAPI/v2"), Server, Plugin.App().Config(), chains.AllChains, allMetrics, network, registry.DefaultRegistry, deps.WAL)
+	v2.Init(Plugin.App().NewLogger("WebAPI/v2"), Server, Plugin.App().Config(), chains.AllChains, allMetrics, network, registry.DefaultRegistry, tnm, deps.WAL)
 }
