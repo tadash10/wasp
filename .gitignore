@@ -32,7 +32,8 @@ wasp-cli.json
 **/node_modules/
 goshimmer.log
 /*.sh
-
+wal/
+snap-cli
 *.trie
 *.snapshot
 snapshot
