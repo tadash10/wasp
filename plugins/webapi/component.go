@@ -8,7 +8,6 @@ import (
 
 	"github.com/iotaledger/wasp/packages/webapi"
 
-	v1 "github.com/iotaledger/wasp/packages/webapi/v1"
 	v2 "github.com/iotaledger/wasp/packages/webapi/v2"
 
 	"github.com/labstack/echo/v4"
@@ -19,7 +18,6 @@ import (
 	"github.com/iotaledger/hive.go/core/app"
 	"github.com/iotaledger/hive.go/core/app/pkg/shutdown"
 	"github.com/iotaledger/wasp/core/chains"
-	"github.com/iotaledger/wasp/core/dkg"
 	"github.com/iotaledger/wasp/core/peering"
 	"github.com/iotaledger/wasp/core/registry"
 	metricspkg "github.com/iotaledger/wasp/packages/metrics"
@@ -147,7 +145,7 @@ func initWebAPI() {
 		allMetrics = metrics.AllMetrics()
 	}
 
-	v1.Init(
+	/*v1.Init(
 		Plugin.App().NewLogger("WebAPI/v1"),
 		Server,
 		network,
@@ -165,6 +163,6 @@ func initWebAPI() {
 		deps.APICacheTTL,
 		deps.PublisherPort,
 	)
-
+	*/
 	v2.Init(Plugin.App().NewLogger("WebAPI/v2"), Server, Plugin.App().Config(), chains.AllChains, allMetrics, network, registry.DefaultRegistry, tnm, deps.WAL)
 }

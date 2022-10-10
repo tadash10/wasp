@@ -1,7 +1,7 @@
 // Copyright 2020 IOTA Stiftung
 // SPDX-License-Identifier: Apache-2.0
 
-package evm
+package jsonrpc
 
 import (
 	"sync"
@@ -16,7 +16,6 @@ import (
 	"github.com/iotaledger/wasp/packages/chain/chainutil"
 	"github.com/iotaledger/wasp/packages/chain/messages"
 	"github.com/iotaledger/wasp/packages/cryptolib"
-	"github.com/iotaledger/wasp/packages/evm/jsonrpc"
 	"github.com/iotaledger/wasp/packages/isc"
 	"github.com/iotaledger/wasp/packages/kv/codec"
 	"github.com/iotaledger/wasp/packages/kv/dict"
@@ -25,24 +24,24 @@ import (
 	"github.com/iotaledger/wasp/packages/vm/core/evm"
 )
 
-type jsonRPCWaspBackend struct {
+type WaspEVMBackend struct {
 	chain      chain.Chain
 	nodePubKey *cryptolib.PublicKey
 	requestIDs sync.Map
 	baseToken  *parameters.BaseToken
 }
 
-var _ jsonrpc.ChainBackend = &jsonRPCWaspBackend{}
+var _ ChainBackend = &WaspEVMBackend{}
 
-func newWaspBackend(ch chain.Chain, nodePubKey *cryptolib.PublicKey, baseToken *parameters.BaseToken) *jsonRPCWaspBackend {
-	return &jsonRPCWaspBackend{
+func NewWaspEVMBackend(ch chain.Chain, nodePubKey *cryptolib.PublicKey, baseToken *parameters.BaseToken) *WaspEVMBackend {
+	return &WaspEVMBackend{
 		chain:      ch,
 		nodePubKey: nodePubKey,
 		baseToken:  baseToken,
 	}
 }
 
-func (b *jsonRPCWaspBackend) RequestIDByTransactionHash(txHash common.Hash) (isc.RequestID, bool) {
+func (b *WaspEVMBackend) RequestIDByTransactionHash(txHash common.Hash) (isc.RequestID, bool) {
 	// TODO: should this be stored in the chain state instead of a volatile cache?
 	r, ok := b.requestIDs.Load(txHash)
 	if !ok {
@@ -51,7 +50,7 @@ func (b *jsonRPCWaspBackend) RequestIDByTransactionHash(txHash common.Hash) (isc
 	return r.(isc.RequestID), true
 }
 
-func (b *jsonRPCWaspBackend) EVMGasRatio() (util.Ratio32, error) {
+func (b *WaspEVMBackend) EVMGasRatio() (util.Ratio32, error) {
 	// TODO: Cache the gas ratio?
 	ret, err := b.ISCCallView(evm.Contract.Name, evm.FuncGetGasRatio.Name, nil)
 	if err != nil {
@@ -60,7 +59,7 @@ func (b *jsonRPCWaspBackend) EVMGasRatio() (util.Ratio32, error) {
 	return codec.DecodeRatio32(ret.MustGet(evm.FieldResult))
 }
 
-func (b *jsonRPCWaspBackend) EVMSendTransaction(tx *types.Transaction) error {
+func (b *WaspEVMBackend) EVMSendTransaction(tx *types.Transaction) error {
 	// Ensure the transaction has more gas than the basic Ethereum tx fee.
 	intrinsicGas, err := core.IntrinsicGas(tx.Data(), tx.AccessList(), tx.To() == nil, true, true)
 	if err != nil {
@@ -91,12 +90,12 @@ func (b *jsonRPCWaspBackend) EVMSendTransaction(tx *types.Transaction) error {
 	return nil
 }
 
-func (b *jsonRPCWaspBackend) evictWhenExpired(txHash common.Hash) {
+func (b *WaspEVMBackend) evictWhenExpired(txHash common.Hash) {
 	time.Sleep(1 * time.Hour)
 	b.requestIDs.Delete(txHash)
 }
 
-func (b *jsonRPCWaspBackend) EVMEstimateGas(callMsg ethereum.CallMsg) (uint64, error) {
+func (b *WaspEVMBackend) EVMEstimateGas(callMsg ethereum.CallMsg) (uint64, error) {
 	res, err := chainutil.SimulateCall(
 		b.chain,
 		isc.NewEVMOffLedgerEstimateGasRequest(b.chain.ID(), callMsg),
@@ -110,10 +109,10 @@ func (b *jsonRPCWaspBackend) EVMEstimateGas(callMsg ethereum.CallMsg) (uint64, e
 	return codec.DecodeUint64(res.Return.MustGet(evm.FieldResult))
 }
 
-func (b *jsonRPCWaspBackend) ISCCallView(scName, funName string, args dict.Dict) (dict.Dict, error) {
+func (b *WaspEVMBackend) ISCCallView(scName, funName string, args dict.Dict) (dict.Dict, error) {
 	return chainutil.CallView(b.chain, isc.Hn(scName), isc.Hn(funName), args)
 }
 
-func (b *jsonRPCWaspBackend) BaseToken() *parameters.BaseToken {
+func (b *WaspEVMBackend) BaseToken() *parameters.BaseToken {
 	return b.baseToken
 }
