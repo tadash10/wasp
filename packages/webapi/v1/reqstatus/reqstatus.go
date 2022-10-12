@@ -146,6 +146,7 @@ func doGetISCReceipt(ch chain.ChainRequests, reqID isc.RequestID) (*model.Reques
 	if err != nil {
 		return nil, xerrors.Errorf("error resolving the receipt error: %s", err)
 	}
+
 	iscReceipt := receipt.ToISCReceipt(resolvedError)
 
 	receiptJSON, err := json.Marshal(iscReceipt)

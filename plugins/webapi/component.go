@@ -127,7 +127,6 @@ func initWebAPI() {
 
 	Server.AddSecurityAPIKey("Authorization", "JWT Token", echoswagger.SecurityInHeader).
 		SetExternalDocs("Find out more about Wasp", "https://wiki.iota.org/smart-contracts/overview").
-		SetResponseContentType("application/xml", "application/json").
 		SetUI(echoswagger.UISetting{DetachSpec: false, HideTop: false}).
 		SetScheme("http", "https")
 
@@ -164,5 +163,16 @@ func initWebAPI() {
 		deps.PublisherPort,
 	)
 	*/
-	v2.Init(Plugin.App().NewLogger("WebAPI/v2"), Server, Plugin.App().Config(), chains.AllChains, allMetrics, network, registry.DefaultRegistry, tnm, deps.WAL)
+	v2.Init(
+		Plugin.App().NewLogger("WebAPI/v2"),
+		Server,
+		Plugin.App().Config(),
+		chains.AllChains,
+		allMetrics,
+		network,
+		registry.DefaultRegistry,
+		deps.ShutdownHandler,
+		tnm,
+		deps.WAL,
+	)
 }
