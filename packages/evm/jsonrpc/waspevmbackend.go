@@ -95,7 +95,7 @@ func (b *WaspEVMBackend) evictWhenExpired(txHash common.Hash) {
 	b.requestIDs.Delete(txHash)
 }
 
-func (b *jsonRPCWaspBackend) EVMEstimateGas(callMsg ethereum.CallMsg) (uint64, error) {
+func (b *WaspEVMBackend) EVMEstimateGas(callMsg ethereum.CallMsg) (uint64, error) {
 	return chainutil.EstimateGas(b.chain, callMsg)
 }
 

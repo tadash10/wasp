@@ -6,6 +6,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/iotaledger/wasp/core/dkg"
+	v1 "github.com/iotaledger/wasp/packages/webapi/v1"
+
 	"github.com/iotaledger/wasp/packages/webapi"
 
 	v2 "github.com/iotaledger/wasp/packages/webapi/v2"
@@ -144,7 +147,7 @@ func initWebAPI() {
 		allMetrics = metrics.AllMetrics()
 	}
 
-	/*v1.Init(
+	v1.Init(
 		Plugin.App().NewLogger("WebAPI/v1"),
 		Server,
 		network,
@@ -162,12 +165,13 @@ func initWebAPI() {
 		deps.APICacheTTL,
 		deps.PublisherPort,
 	)
-	*/
+
 	v2.Init(
 		Plugin.App().NewLogger("WebAPI/v2"),
 		Server,
 		Plugin.App().Config(),
 		chains.AllChains,
+		dkg.DefaultNode,
 		allMetrics,
 		network,
 		registry.DefaultRegistry,
