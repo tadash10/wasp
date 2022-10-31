@@ -15,6 +15,7 @@ dist/
 .vscode/
 *.bat
 *.bak
+Cargo.lock
 packages/gpa/**/*.dvi
 packages/gpa/**/*.tex
 packages/gpa/**/*.pdf
@@ -24,6 +25,7 @@ packages/gpa/**/*.aux
 packages/gpa/**/states/
 packages/gpa/**/*.toolbox/
 wasp-cli.json
+wasp-config-template.json
 **/pkg/
 **/target/
 .DS_Store

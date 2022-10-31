@@ -25,6 +25,7 @@ import (
 	"github.com/iotaledger/wasp/core/registry"
 	metricspkg "github.com/iotaledger/wasp/packages/metrics"
 	"github.com/iotaledger/wasp/packages/parameters"
+	"github.com/iotaledger/wasp/packages/users"
 	"github.com/iotaledger/wasp/packages/wal"
 	"github.com/iotaledger/wasp/packages/wasp"
 	"github.com/iotaledger/wasp/plugins/metrics"
@@ -60,6 +61,7 @@ type dependencies struct {
 	WAL             *wal.WAL
 	APICacheTTL     time.Duration `name:"apiCacheTTL"`
 	PublisherPort   int           `name:"publisherPort"`
+	UserManager     *users.UserManager
 }
 
 func run() error {
@@ -152,6 +154,7 @@ func initWebAPI() {
 		Server,
 		network,
 		tnm,
+		deps.UserManager,
 		registry.DefaultRegistry,
 		chains.AllChains,
 		dkg.DefaultNode,

@@ -36,6 +36,18 @@ $copyrightMessage
 
 `,
 	// *******************************
+	"../README.md Sc": `
+## $package
+
+$scDesc
+`,
+	// *******************************
+	"../README.md Main": `
+## $package$+_main
+
+Wasm VM host stub for: $scDesc
+`,
+	// *******************************
 	"test.go": `
 $#emit copyright
 package test
@@ -49,7 +61,7 @@ import (
 )
 
 func TestDeploy(t *testing.T) {
-	ctx := wasmsolo.NewSoloContext(t, $package.ScName, $package.OnLoad)
+	ctx := wasmsolo.NewSoloContext(t, $package.ScName, $package.OnDispatch)
 	require.NoError(t, ctx.ContractExists($package.ScName))
 }
 `,

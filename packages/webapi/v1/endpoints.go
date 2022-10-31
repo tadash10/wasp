@@ -23,6 +23,7 @@ import (
 	metricspkg "github.com/iotaledger/wasp/packages/metrics"
 	"github.com/iotaledger/wasp/packages/peering"
 	"github.com/iotaledger/wasp/packages/registry"
+	"github.com/iotaledger/wasp/packages/users"
 	"github.com/iotaledger/wasp/packages/wal"
 )
 
@@ -33,6 +34,7 @@ func Init(
 	server echoswagger.ApiRoot,
 	network peering.NetworkProvider,
 	tnm peering.TrustedNetworkManager,
+	userManager *users.UserManager,
 	registryProvider registry.Provider,
 	chainsProvider chains.Provider,
 	nodeProvider dkg.NodeProvider,
@@ -71,6 +73,7 @@ func Init(
 		adm,
 		network,
 		tnm,
+		userManager,
 		registryProvider,
 		chainsProvider,
 		nodeProvider,
