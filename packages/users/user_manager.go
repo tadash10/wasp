@@ -108,6 +108,35 @@ func (pm *UserManager) ModifyUser(user *User) error {
 	return pm.Store()
 }
 
+// ChangeUserPassword changes the password of a user.
+func (pm *UserManager) ChangeUserPassword(name string, passwordHash, passwordSalt []byte) error {
+	pm.usersLock.Lock()
+	defer pm.usersLock.Unlock()
+
+	if _, exists := pm.users[name]; !exists {
+		return fmt.Errorf("unable to change password for user: user \"%s\" does not exist", name)
+	}
+
+	pm.users[name].PasswordHash = passwordHash
+	pm.users[name].PasswordSalt = passwordSalt
+
+	return pm.Store()
+}
+
+// ChangeUserPermissions changes the permissions of a user.
+func (pm *UserManager) ChangeUserPermissions(name string, permissions map[string]struct{}) error {
+	pm.usersLock.Lock()
+	defer pm.usersLock.Unlock()
+
+	if _, exists := pm.users[name]; !exists {
+		return fmt.Errorf("unable to change permissions for user: user \"%s\" does not exist", name)
+	}
+
+	pm.users[name].Permissions = permissions
+
+	return pm.Store()
+}
+
 // RemoveUser removes a user from the user manager.
 func (pm *UserManager) RemoveUser(name string) error {
 	pm.usersLock.Lock()
@@ -123,9 +152,9 @@ func (pm *UserManager) RemoveUser(name string) error {
 }
 
 // DerivePasswordKey derives a password key by hashing the given password with a salt.
-func (pm *UserManager) DerivePasswordKey(password string, passwordSaltHex ...string) (string, string, error) {
+func (pm *UserManager) DerivePasswordKey(password string, passwordSaltHex ...string) ([]byte, []byte, error) {
 	if password == "" {
-		return "", "", errors.New("password must not be empty")
+		return []byte{}, []byte{}, errors.New("password must not be empty")
 	}
 
 	var err error
@@ -133,24 +162,24 @@ func (pm *UserManager) DerivePasswordKey(password string, passwordSaltHex ...str
 	if len(passwordSaltHex) > 0 {
 		// salt was given
 		if len(passwordSaltHex[0]) != 64 {
-			return "", "", errors.New("the given salt must be 64 (hex encoded) in length")
+			return []byte{}, []byte{}, errors.New("the given salt must be 64 (hex encoded) in length")
 		}
 
 		passwordSaltBytes, err = hex.DecodeString(passwordSaltHex[0])
 		if err != nil {
-			return "", "", fmt.Errorf("parsing given salt failed: %w", err)
+			return []byte{}, []byte{}, fmt.Errorf("parsing given salt failed: %w", err)
 		}
 	} else {
 		passwordSaltBytes, err = basicauth.SaltGenerator(32)
 		if err != nil {
-			return "", "", fmt.Errorf("generating random salt failed: %w", err)
+			return []byte{}, []byte{}, fmt.Errorf("generating random salt failed: %w", err)
 		}
 	}
 
 	passwordKeyBytes, err := basicauth.DerivePasswordKey([]byte(password), passwordSaltBytes)
 	if err != nil {
-		return "", "", fmt.Errorf("deriving password key failed: %w", err)
+		return []byte{}, []byte{}, fmt.Errorf("deriving password key failed: %w", err)
 	}
 
-	return hex.EncodeToString(passwordKeyBytes), hex.EncodeToString(passwordSaltBytes), nil
+	return passwordKeyBytes, passwordSaltBytes, nil
 }

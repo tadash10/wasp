@@ -119,11 +119,16 @@ func provide(c *dig.Container) error {
 			Version:     wasp.Version,
 		})
 
+		echoSwagger.AddSecurityAPIKey("Authorization", "JWT Token", echoswagger.SecurityInHeader).
+			SetExternalDocs("Find out more about Wasp", "https://wiki.iota.org/smart-contracts/overview").
+			SetUI(echoswagger.UISetting{DetachSpec: false, HideTop: false}).
+			SetScheme("http", "https")
+
 		echoSwagger.SetRequestContentType(echo.MIMEApplicationJSON)
 		echoSwagger.SetResponseContentType(echo.MIMEApplicationJSON)
 
 		v1.Init(
-			Plugin.App().NewLogger("WebAPI"),
+			Plugin.App().NewLogger("WebAPI/v1"),
 			echoSwagger,
 			deps.DefaultNetworkProvider,
 			deps.DefaultTrustedNetworkManager,
@@ -160,11 +165,13 @@ func provide(c *dig.Container) error {
 			},
 			deps.Metrics,
 			deps.DefaultNetworkProvider,
+			ParamsWebAPI.NodeOwnerAddresses,
 			func() registry.Registry {
 				return deps.DefaultRegistry
 			},
 			deps.ShutdownHandler,
 			deps.DefaultTrustedNetworkManager,
+			deps.UserManager,
 			deps.WAL,
 		)
 
