@@ -15,6 +15,7 @@ import (
 	"github.com/iotaledger/wasp/packages/chain"
 	"github.com/iotaledger/wasp/packages/chain/consensus/journal"
 	dss_node_pkg "github.com/iotaledger/wasp/packages/chain/dss/node"
+	"github.com/iotaledger/wasp/packages/chain/eventmessages"
 	mempool_pkg "github.com/iotaledger/wasp/packages/chain/mempool"
 	"github.com/iotaledger/wasp/packages/chain/messages"
 	"github.com/iotaledger/wasp/packages/chain/statemgr"
@@ -367,7 +368,12 @@ func (c *chainObj) publishNewBlockEvents(blockIndex uint32) {
 	go func() {
 		for _, msg := range evts {
 			c.log.Debugf("publishNewBlockEvents: '%s'", msg)
-			publisher.Publish("vmmsg", c.chainID.String(), msg)
+
+			message := eventmessages.VMMessage{
+				EventMessage: msg,
+			}
+
+			publisher.Publish(eventmessages.NewChainEventVMMessage(c.chainID.String(), message))
 		}
 	}()
 }

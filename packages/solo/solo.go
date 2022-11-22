@@ -177,8 +177,8 @@ func New(t TestContext, initOptions ...*InitOptions) *Solo {
 	})
 	require.NoError(t, err)
 
-	publisher.Event.Hook(events.NewClosure(func(msgType string, parts []string) {
-		ret.logger.Infof("solo publisher: %s %v", msgType, parts)
+	publisher.Event.Hook(events.NewClosure(func(event *publisher.ChainEvent) {
+		ret.logger.Infof("solo publisher: %s %v", event.MessageType, event.Message)
 	}))
 
 	return ret

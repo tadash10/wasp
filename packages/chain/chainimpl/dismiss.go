@@ -5,6 +5,7 @@
 package chainimpl
 
 import (
+	"github.com/iotaledger/wasp/packages/chain/eventmessages"
 	"github.com/iotaledger/wasp/packages/publisher"
 )
 
@@ -41,7 +42,8 @@ func (c *chainObj) Dismiss(reason string) {
 		c.timerTickMsgPipe.Close()
 	})
 
-	publisher.Publish("dismissed_chain", c.chainID.String())
+	publisher.Publish(eventmessages.NewChainEventDismissed(c.chainID.String()))
+
 	c.log.Debug("Chain dismissed")
 }
 

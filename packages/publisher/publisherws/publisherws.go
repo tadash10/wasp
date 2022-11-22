@@ -4,8 +4,8 @@
 package publisherws
 
 import (
+	"encoding/json"
 	"net/http"
-	"strings"
 
 	"nhooyr.io/websocket"
 
@@ -27,7 +27,7 @@ func New(log *logger.Logger, msgTypes []string) *PublisherWebSocket {
 	}
 
 	return &PublisherWebSocket{
-		log:      log.Named("PublisherWebSocket"),
+		log:      log.Named("PublisherWebSocketJSON"),
 		msgTypes: msgTypesMap,
 	}
 }
@@ -45,21 +45,19 @@ func (p *PublisherWebSocket) ServeHTTP(chainID *isc.ChainID, w http.ResponseWrit
 	p.log.Debugf("accepted websocket connection from %s", r.RemoteAddr)
 	defer p.log.Debugf("closed websocket connection from %s", r.RemoteAddr)
 
-	ch := make(chan string, 10)
+	ch := make(chan *publisher.ChainEvent, 10)
 
-	cl := events.NewClosure(func(msgType string, parts []string) {
-		if !p.msgTypes[msgType] {
+	cl := events.NewClosure(func(event *publisher.ChainEvent) {
+		if !p.msgTypes[event.MessageType] {
 			return
 		}
-		if len(parts) < 1 {
-			return
-		}
-		if parts[0] != chainID.String() {
+
+		if chainID.String() != event.ChainID {
 			return
 		}
 
 		select {
-		case ch <- msgType + " " + strings.Join(parts, " "):
+		case ch <- event:
 		default:
 			p.log.Warnf("dropping websocket message for %s", r.RemoteAddr)
 		}
@@ -69,7 +67,12 @@ func (p *PublisherWebSocket) ServeHTTP(chainID *isc.ChainID, w http.ResponseWrit
 
 	for {
 		msg := <-ch
-		err := c.Write(ctx, websocket.MessageText, []byte(msg))
+		event, err := json.Marshal(msg)
+		if err != nil {
+			break
+		}
+
+		err = c.Write(ctx, websocket.MessageText, event)
 		if err != nil {
 			c.Close(websocket.StatusInternalError, err.Error())
 			break

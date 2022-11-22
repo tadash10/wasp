@@ -4,13 +4,27 @@ import (
 	"github.com/iotaledger/hive.go/core/events"
 )
 
-var Event = events.NewEvent(func(handler interface{}, params ...interface{}) {
-	callback := handler.(func(msgType string, parts []string))
-	msgType := params[0].(string)
-	parts := params[1].([]string)
-	callback(msgType, parts)
+type BaseEvent struct{}
+
+type ChainEvent struct {
+	MessageType string
+	ChainID     string
+	Message     interface{}
+}
+
+func NewChainEvent(messageType, chainID string, message interface{}) *ChainEvent {
+	return &ChainEvent{
+		MessageType: messageType,
+		ChainID:     chainID,
+		Message:     message,
+	}
+}
+
+var Event = events.NewEvent(func(handler interface{}, msg ...interface{}) {
+	callback := handler.(func(event *ChainEvent))
+	callback(msg[0].(*ChainEvent))
 })
 
-func Publish(msgType string, parts ...string) {
-	Event.Trigger(msgType, parts)
+func Publish(event *ChainEvent) {
+	Event.Trigger(event)
 }

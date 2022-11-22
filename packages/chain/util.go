@@ -1,7 +1,7 @@
 package chain
 
 import (
-	"strconv"
+	"github.com/iotaledger/wasp/packages/chain/eventmessages"
 
 	"github.com/iotaledger/hive.go/core/logger"
 	"github.com/iotaledger/trie.go/trie"
@@ -29,35 +29,38 @@ func LogGovernanceTransition(blockIndex uint32, outputID string, rootCommitment 
 
 func PublishRequestsSettled(chainID *isc.ChainID, stateIndex uint32, reqids []isc.RequestID) {
 	for _, reqid := range reqids {
-		publisher.Publish("request_out",
-			chainID.String(),
-			reqid.String(),
-			strconv.Itoa(int(stateIndex)),
-			strconv.Itoa(len(reqids)),
-		)
+		message := eventmessages.RequestOut{
+			RequestID:  reqid.String(),
+			RequestIDs: len(reqids),
+			StateIndex: stateIndex,
+		}
+
+		publisher.Publish(eventmessages.NewChainEventRequestOut(chainID.String(), message))
 	}
 }
 
 func PublishStateTransition(chainID *isc.ChainID, stateOutput *isc.AliasOutputWithID, reqIDsLength int) {
 	stateHash, _ := hashing.HashValueFromBytes(stateOutput.GetStateMetadata())
 
-	publisher.Publish("state",
-		chainID.String(),
-		strconv.Itoa(int(stateOutput.GetStateIndex())),
-		strconv.Itoa(reqIDsLength),
-		isc.OID(stateOutput.ID()),
-		stateHash.String(),
-	)
+	message := eventmessages.StateUpdate{
+		StateIndex:    stateOutput.GetStateIndex(),
+		RequestIDs:    reqIDsLength,
+		StateOutputID: isc.OID(stateOutput.ID()),
+		StateHash:     stateHash.String(),
+	}
+
+	publisher.Publish(eventmessages.NewChainEventStateUpdate(chainID.String(), message))
 }
 
 func PublishGovernanceTransition(stateOutput *isc.AliasOutputWithID) {
 	stateHash, _ := hashing.HashValueFromBytes(stateOutput.GetStateMetadata())
 	chainID := isc.ChainIDFromAliasID(stateOutput.GetAliasID())
 
-	publisher.Publish("rotate",
-		chainID.String(),
-		strconv.Itoa(int(stateOutput.GetStateIndex())),
-		isc.OID(stateOutput.ID()),
-		stateHash.String(),
-	)
+	message := eventmessages.Rotation{
+		StateIndex:    stateOutput.GetStateIndex(),
+		StateOutputID: isc.OID(stateOutput.ID()),
+		StateHash:     stateHash.String(),
+	}
+
+	publisher.Publish(eventmessages.NewChainEventRotation(chainID.String(), message))
 }

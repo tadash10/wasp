@@ -2,8 +2,8 @@ package publishernano
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"go.nanomsg.org/mangos/v3"
@@ -84,12 +84,17 @@ func run() error {
 		panic(err)
 	}
 
-	publisher.Event.Hook(events.NewClosure(func(msgType string, parts []string) {
-		msg := msgType + " " + strings.Join(parts, " ")
+	publisher.Event.Hook(events.NewClosure(func(event *publisher.ChainEvent) {
+		msg, err := json.Marshal(event)
+		if err != nil {
+			Plugin.LogWarnf("Failed to publish message: [%v][%v]", event, err)
+			return
+		}
+
 		select {
-		case messages <- []byte(msg):
+		case messages <- msg:
 		case <-time.After(1 * time.Second):
-			Plugin.LogWarnf("Failed to publish message: [%s]", msg)
+			Plugin.LogWarnf("Failed to publish message: [%v]", event)
 		}
 	}))
 
