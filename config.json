@@ -64,7 +64,7 @@
     "nodeOwnerAddresses": [],
     "bindAddress": "0.0.0.0:9090",
     "auth": {
-      "scheme": "none",
+      "scheme": "jwt",
       "jwt": {
         "duration": "24h"
       },
