@@ -1,12 +1,12 @@
 package request
 
 import (
-	"github.com/iotaledger/wasp/packages/webapi/v1/model"
-	"github.com/iotaledger/wasp/packages/webapi/v1/routes"
-	"github.com/iotaledger/wasp/packages/webapi/v1/testutil"
 	"net/http"
 	"testing"
 	"time"
+	"github.com/iotaledger/wasp/packages/webapi/v1/model"
+	"github.com/iotaledger/wasp/packages/webapi/v1/routes"
+	"github.com/iotaledger/wasp/packages/webapi/v1/testutil"
 
 	"github.com/iotaledger/hive.go/core/events"
 	iotago "github.com/iotaledger/iota.go/v3"

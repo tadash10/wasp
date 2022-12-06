@@ -5,10 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/iotaledger/wasp/packages/webapi/v1/model"
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/iotaledger/wasp/packages/webapi/v1/model"
 
 	"golang.org/x/xerrors"
 )

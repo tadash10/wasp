@@ -1,11 +1,12 @@
 package reqstatus
 
 import (
+	"net/http"
+	"testing"
+
 	"github.com/iotaledger/wasp/packages/webapi/v1/model"
 	"github.com/iotaledger/wasp/packages/webapi/v1/routes"
 	"github.com/iotaledger/wasp/packages/webapi/v1/testutil"
-	"net/http"
-	"testing"
 
 	"github.com/stretchr/testify/require"
 

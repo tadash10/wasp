@@ -2,11 +2,12 @@ package client
 
 import (
 	"encoding/json"
+	"net/http"
+	"time"
+
 	"github.com/iotaledger/wasp/packages/webapi/v1/model"
 	"github.com/iotaledger/wasp/packages/webapi/v1/reqstatus"
 	"github.com/iotaledger/wasp/packages/webapi/v1/routes"
-	"net/http"
-	"time"
 
 	iotago "github.com/iotaledger/iota.go/v3"
 	"github.com/iotaledger/wasp/packages/isc"

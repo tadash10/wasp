@@ -73,6 +73,7 @@ func initConfigPars(c *dig.Container) error {
 	return nil
 }
 
+//nolint:funlen
 func provide(c *dig.Container) error {
 	type webapiServerDeps struct {
 		dig.In

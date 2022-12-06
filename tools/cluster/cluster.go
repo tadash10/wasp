@@ -6,8 +6,6 @@ package cluster
 import (
 	"bufio"
 	"fmt"
-	"github.com/iotaledger/wasp/packages/webapi/v1/model"
-	"github.com/iotaledger/wasp/packages/webapi/v1/routes"
 	"io"
 	"math/rand"
 	"net/http"
@@ -18,6 +16,9 @@ import (
 	"testing"
 	"text/template"
 	"time"
+
+	"github.com/iotaledger/wasp/packages/webapi/v1/model"
+	"github.com/iotaledger/wasp/packages/webapi/v1/routes"
 
 	"golang.org/x/xerrors"
 

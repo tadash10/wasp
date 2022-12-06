@@ -9,9 +9,10 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/labstack/echo/v4"
+
 	"github.com/iotaledger/wasp/packages/authentication"
 	"github.com/iotaledger/wasp/packages/webapi/v1/routes"
-	"github.com/labstack/echo/v4"
 
 	"github.com/iotaledger/hive.go/core/logger"
 	"github.com/iotaledger/wasp/packages/chain"

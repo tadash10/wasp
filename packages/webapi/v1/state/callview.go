@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+
 	"github.com/iotaledger/wasp/packages/webapi/v1/httperrors"
 	"github.com/iotaledger/wasp/packages/webapi/v1/routes"
-	"net/http"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/labstack/echo/v4"
