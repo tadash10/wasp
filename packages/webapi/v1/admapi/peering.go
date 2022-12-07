@@ -37,34 +37,41 @@ func addPeeringEndpoints(adm echoswagger.ApiGroup, network peering.NetworkProvid
 	}
 
 	adm.GET(routes.PeeringSelfGet(), handlePeeringSelfGet, addCtx).
+		SetDeprecated().
 		AddResponse(http.StatusOK, "This node as a peer.", listExample[0], nil).
 		SetSummary("Basic peer info of the current node.")
 
 	adm.GET(routes.PeeringTrustedList(), handlePeeringTrustedList, addCtx).
+		SetDeprecated().
 		AddResponse(http.StatusOK, "A list of trusted peers.", listExample, nil).
 		SetSummary("Get a list of trusted peers.")
 
 	adm.GET(routes.PeeringTrustedGet(":pubKey"), handlePeeringTrustedGet, addCtx).
+		SetDeprecated().
 		AddParamPath(listExample[0].PubKey, "pubKey", "Public key of the trusted peer (hex).").
 		AddResponse(http.StatusOK, "Trusted peer info.", listExample[0], nil).
 		SetSummary("Get details on a particular trusted peer.")
 
 	adm.PUT(routes.PeeringTrustedPut(":pubKey"), handlePeeringTrustedPut, addCtx).
+		SetDeprecated().
 		AddParamPath(listExample[0].PubKey, "pubKey", "Public key of the trusted peer (hex).").
 		AddParamBody(listExample[0], "PeeringTrustedNode", "Info of the peer to trust.", true).
 		AddResponse(http.StatusOK, "Trusted peer info.", listExample[0], nil).
 		SetSummary("Trust the specified peer, the pub key is passed via the path.")
 
 	adm.GET(routes.PeeringGetStatus(), handlePeeringGetStatus, addCtx).
+		SetDeprecated().
 		AddResponse(http.StatusOK, "A list of all peers.", peeringStatusExample, nil).
 		SetSummary("Basic information about all configured peers.")
 
 	adm.POST(routes.PeeringTrustedPost(), handlePeeringTrustedPost, addCtx).
+		SetDeprecated().
 		AddParamBody(listExample[0], "PeeringTrustedNode", "Info of the peer to trust.", true).
 		AddResponse(http.StatusOK, "Trusted peer info.", listExample[0], nil).
 		SetSummary("Trust the specified peer.")
 
 	adm.DELETE(routes.PeeringTrustedDelete(":pubKey"), handlePeeringTrustedDelete, addCtx).
+		SetDeprecated().
 		AddParamPath(listExample[0].PubKey, "pubKey", "Public key of the trusted peer (hex).").
 		SetSummary("Distrust the specified peer.")
 }

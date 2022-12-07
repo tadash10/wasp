@@ -34,6 +34,7 @@ func AddEndpoints(server echoswagger.ApiRouter, allChains chains.Provider) {
 	s := &callViewService{allChains}
 
 	server.POST(routes.CallViewByName(":chainID", ":contractHname", ":fname"), s.handleCallViewByName).
+		SetDeprecated().
 		SetSummary("Call a view function on a contract by name").
 		AddParamPath("", "chainID", "ChainID").
 		AddParamPath("", "contractHname", "Contract Hname").
@@ -42,6 +43,7 @@ func AddEndpoints(server echoswagger.ApiRouter, allChains chains.Provider) {
 		AddResponse(http.StatusOK, "Result", dictExample, nil)
 
 	server.GET(routes.CallViewByName(":chainID", ":contractHname", ":fname"), s.handleCallViewByName).
+		SetDeprecated().
 		SetSummary("Call a view function on a contract by name").
 		AddParamPath("", "chainID", "ChainID").
 		AddParamPath("", "contractHname", "Contract Hname").
@@ -50,6 +52,7 @@ func AddEndpoints(server echoswagger.ApiRouter, allChains chains.Provider) {
 		AddResponse(http.StatusOK, "Result", dictExample, nil)
 
 	server.POST(routes.CallViewByHname(":chainID", ":contractHname", ":functionHname"), s.handleCallViewByHname).
+		SetDeprecated().
 		SetSummary("Call a view function on a contract by Hname").
 		AddParamPath("", "chainID", "ChainID").
 		AddParamPath("", "contractHname", "Contract Hname").
@@ -58,6 +61,7 @@ func AddEndpoints(server echoswagger.ApiRouter, allChains chains.Provider) {
 		AddResponse(http.StatusOK, "Result", dictExample, nil)
 
 	server.GET(routes.CallViewByHname(":chainID", ":contractHname", ":functionHname"), s.handleCallViewByHname).
+		SetDeprecated().
 		SetSummary("Call a view function on a contract by Hname").
 		AddParamPath("", "chainID", "ChainID").
 		AddParamPath("", "contractHname", "Contract Hname").
@@ -66,6 +70,7 @@ func AddEndpoints(server echoswagger.ApiRouter, allChains chains.Provider) {
 		AddResponse(http.StatusOK, "Result", dictExample, nil)
 
 	server.GET(routes.StateGet(":chainID", ":key"), s.handleStateGet).
+		SetDeprecated().
 		SetSummary("Fetch the raw value associated with the given key in the chain state").
 		AddParamPath("", "chainID", "ChainID").
 		AddParamPath("", "key", "Key (hex-encoded)").
