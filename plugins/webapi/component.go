@@ -106,7 +106,7 @@ func provide(c *dig.Container) error {
 
 		e.HideBanner = true
 		e.HidePort = true
-		e.HTTPErrorHandler = webapi.CompatibilityHTTPErrorHandler
+		e.HTTPErrorHandler = webapi.CompatibilityHTTPErrorHandler(Plugin.Logger())
 
 		e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 			AllowOrigins: []string{"*"},
