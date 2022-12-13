@@ -70,7 +70,6 @@ func AddAuthentication(webAPI WebAPI, userManager *users.UserManager, registryPr
 		AddBasicAuth(webAPI, userManager)
 	case AuthJWT:
 		nodeIdentity := registryProvider().GetNodeIdentity()
-
 		privateKey := nodeIdentity.GetPrivateKey().AsBytes()
 
 		// The primary claim is the one mandatory claim that gives access to api/webapi/alike
