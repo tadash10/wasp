@@ -30,6 +30,10 @@ type cliqueDist struct {
 
 var _ gpa.GPA = &cliqueDist{}
 
+func PrintResult() string {
+	return "" // TODO: ....
+}
+
 func New(myKeyPair *cryptolib.KeyPair, now time.Time, log *logger.Logger) gpa.GPA {
 	return &cliqueDist{
 		me:        gpa.NodeIDFromPublicKey(myKeyPair.GetPublicKey()),
@@ -83,7 +87,7 @@ func (cd *cliqueDist) handleInputCheck(input *inputCheck) gpa.OutMessages {
 		}
 		sessionID = hashing.HashDataBlake2b(sessionID[:])
 	}
-	s := newSession(sessionID, 1, cd.now, input.timeout, cd.myKeyPair.GetPublicKey(), input.callback, cd.me, cd.me, input.nodePubs, cd.log)
+	s := newSession(sessionID, cd.me, cd.now, input.timeout, nil, cd.me, input.callback, input.nodePubs, cd.log)
 	cd.sessions.Set(sessionID, s)
 	return s.MakeReqMsgs()
 }
@@ -96,9 +100,9 @@ func (cd *cliqueDist) handleInputTimeTick(input *inputTimeTick) gpa.OutMessages 
 			cd.sessions.Delete(s.id)
 			if subRes != nil {
 				msgs.Add(newMsgResponse(
-					s.FromNodeID(),
+					s.InitiatorNodeID(),
 					s.ID(),
-					NewLinkStatusOK(s.id, s.FromPubKey(), cd.myKeyPair),
+					NewLinkStatusOK(s.id, s.InitiatorPubKey(), cd.myKeyPair),
 					subRes,
 				))
 			}
@@ -114,7 +118,7 @@ func (cd *cliqueDist) handleMsgQuery(msg *msgQuery) gpa.OutMessages {
 		cd.log.Warnf("failed to validate the received msgQuery: %v", err)
 		return nil
 	}
-	if msg.ttl == 0 || len(msg.subQuery) == 0 {
+	if len(msg.subQuery) == 0 {
 		// Always respond to leaf queries.
 		return gpa.NoMessages().Add(newMsgResponse(
 			msg.Sender(),
@@ -127,7 +131,7 @@ func (cd *cliqueDist) handleMsgQuery(msg *msgQuery) gpa.OutMessages {
 		// Duplicate request, ignore it.
 		return nil
 	}
-	msgS := newSession(msg.session, 0, cd.now, msg.timeout, msg.senderPubKey, nil, cd.me, msg.Sender(), msg.subQuery, cd.log)
+	msgS := newSession(msg.session, cd.me, cd.now, msg.timeout, msg.senderPubKey, msg.Sender(), nil, msg.subQuery, cd.log)
 	cd.sessions.Set(msg.session, msgS)
 	return msgS.MakeReqMsgs()
 }
@@ -145,9 +149,9 @@ func (cd *cliqueDist) handleMsgResponse(msg *msgResponse) gpa.OutMessages {
 		cd.sessions.Delete(s.id)
 		if subRes != nil {
 			return gpa.NoMessages().Add(newMsgResponse(
-				s.FromNodeID(),
+				s.InitiatorNodeID(),
 				s.ID(),
-				NewLinkStatusOK(s.id, s.FromPubKey(), cd.myKeyPair),
+				NewLinkStatusOK(s.id, s.InitiatorPubKey(), cd.myKeyPair),
 				subRes,
 			))
 		}

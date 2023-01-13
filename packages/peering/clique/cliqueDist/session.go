@@ -16,28 +16,28 @@ import (
 )
 
 type session struct {
-	id        hashing.HashValue
-	me        gpa.NodeID
-	ttl       byte
-	from      *cryptolib.PublicKey
-	started   time.Time
-	timeout   time.Duration
-	callback  Callback
-	nodePubs  []*cryptolib.PublicKey
-	nodeIDs   map[gpa.NodeID]*cryptolib.PublicKey
-	required  map[gpa.NodeID]interface{}
-	collected map[gpa.NodeID]map[gpa.NodeID]*LinkStatus // responses[SRC][DST]
-	log       *logger.Logger
+	id              hashing.HashValue    // SessionID
+	me              gpa.NodeID           // This node.
+	initiatorPubKey *cryptolib.PublicKey // nil on the initiator node.
+	initiatorNodeID gpa.NodeID           // me, on the initiator node.
+	started         time.Time
+	timeout         time.Duration
+	callback        Callback
+	nodePubs        []*cryptolib.PublicKey
+	nodeIDs         map[gpa.NodeID]*cryptolib.PublicKey
+	required        map[gpa.NodeID]interface{}
+	collected       map[gpa.NodeID]map[gpa.NodeID]*LinkStatus // responses[SRC][DST]
+	log             *logger.Logger
 }
 
 func newSession(
 	id hashing.HashValue,
-	ttl byte,
+	me gpa.NodeID,
 	now time.Time,
 	timeout time.Duration,
-	from *cryptolib.PublicKey,
+	initiatorPubKey *cryptolib.PublicKey,
+	initiatorNodeID gpa.NodeID,
 	callback Callback,
-	me, initiator gpa.NodeID,
 	nodePubs []*cryptolib.PublicKey,
 	log *logger.Logger,
 ) *session {
@@ -47,7 +47,7 @@ func newSession(
 	}
 	required := map[gpa.NodeID]interface{}{}
 	for nodeID := range nodeIDs {
-		if nodeID.Equals(me) || nodeID.Equals(initiator) {
+		if nodeID.Equals(me) || nodeID.Equals(initiatorNodeID) {
 			continue
 		}
 		required[nodeID] = nil
@@ -56,18 +56,18 @@ func newSession(
 		timeout = maxStepTimeout
 	}
 	return &session{
-		id:        id,
-		me:        me,
-		ttl:       ttl,
-		from:      from,
-		started:   now,
-		timeout:   timeout,
-		callback:  callback,
-		nodePubs:  nodePubs,
-		nodeIDs:   nodeIDs,
-		required:  required,
-		collected: map[gpa.NodeID]map[gpa.NodeID]*LinkStatus{},
-		log:       log,
+		id:              id,
+		me:              me,
+		initiatorPubKey: initiatorPubKey,
+		initiatorNodeID: initiatorNodeID,
+		started:         now,
+		timeout:         timeout,
+		callback:        callback,
+		nodePubs:        nodePubs,
+		nodeIDs:         nodeIDs,
+		required:        required,
+		collected:       map[gpa.NodeID]map[gpa.NodeID]*LinkStatus{},
+		log:             log,
 	}
 }
 
@@ -75,23 +75,23 @@ func (s *session) ID() hashing.HashValue {
 	return s.id
 }
 
-func (s *session) FromNodeID() gpa.NodeID {
-	return gpa.NodeIDFromPublicKey(s.from)
+func (s *session) InitiatorNodeID() gpa.NodeID {
+	return s.initiatorNodeID
 }
 
-func (s *session) FromPubKey() *cryptolib.PublicKey {
-	return s.from
+func (s *session) InitiatorPubKey() *cryptolib.PublicKey {
+	return s.initiatorPubKey
 }
 
 func (s *session) StatusString() string {
-	return fmt.Sprintf("{session, ttl=%v, |required|=%v}", s.ttl, len(s.required))
+	return fmt.Sprintf("{session, sub=%v, |required|=%v}", s.initiatorPubKey != nil, len(s.required))
 }
 
 func (s *session) MakeReqMsgs() gpa.OutMessages {
 	msgs := gpa.NoMessages()
-	sub := lo.If(s.ttl == 0, []*cryptolib.PublicKey{}).Else(s.nodePubs)
+	sub := lo.If(s.initiatorPubKey != nil, []*cryptolib.PublicKey{}).Else(s.nodePubs)
 	for nodeID := range s.required {
-		msgs.Add(newMsgQuery(nodeID, s.id, s.nodeIDs[s.me], sub, s.timeout/2, s.ttl))
+		msgs.Add(newMsgQuery(nodeID, s.id, s.nodeIDs[s.me], sub, s.timeout/2))
 	}
 	return msgs
 }

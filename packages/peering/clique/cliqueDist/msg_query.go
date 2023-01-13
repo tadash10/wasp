@@ -18,7 +18,6 @@ type msgQuery struct {
 	senderPubKey *cryptolib.PublicKey
 	subQuery     []*cryptolib.PublicKey
 	timeout      time.Duration
-	ttl          byte
 }
 
 var _ gpa.Message = &msgQuery{}
@@ -29,7 +28,6 @@ func newMsgQuery(
 	senderPubKey *cryptolib.PublicKey,
 	subQuery []*cryptolib.PublicKey,
 	timeout time.Duration,
-	ttl byte,
 ) gpa.Message {
 	return &msgQuery{
 		BasicMessage: gpa.NewBasicMessage(recipient),
@@ -37,7 +35,6 @@ func newMsgQuery(
 		senderPubKey: senderPubKey,
 		subQuery:     subQuery,
 		timeout:      timeout,
-		ttl:          ttl,
 	}
 }
 
@@ -57,5 +54,9 @@ func (m *msgQuery) UnmarshalBinary(data []byte) error {
 }
 
 func (m *msgQuery) String() string {
-	return fmt.Sprintf("{msgQuery, sender=%v, recipient=%v, ttl=%v, |subQuery|=%v}", m.Sender().ShortString(), m.Recipient().ShortString(), m.ttl, len(m.subQuery))
+	return fmt.Sprintf("{msgQuery, sender=%v, recipient=%v, |subQuery|=%v}",
+		m.Sender().ShortString(),
+		m.Recipient().ShortString(),
+		len(m.subQuery),
+	)
 }
