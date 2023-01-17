@@ -34,6 +34,7 @@ const (
 	PeerMessageReceiverDkgInit
 	PeerMessageReceiverMempool
 	PeerMessageReceiverAccessMgr
+	PeerMessageReceiverClique
 )
 
 // NetworkProvider stands for the peer-to-peer network, as seen
@@ -42,7 +43,6 @@ type NetworkProvider interface {
 	Run(ctx context.Context)
 	Self() PeerSender
 	PeerGroup(peeringID PeeringID, peerPubKeys []*cryptolib.PublicKey) (GroupProvider, error)
-	PeerDomain(peeringID PeeringID, peerAddrs []*cryptolib.PublicKey) (PeerDomainProvider, error)
 	PeerByPubKey(peerPub *cryptolib.PublicKey) (PeerSender, error)
 	SendMsgByPubKey(pubKey *cryptolib.PublicKey, msg *PeerMessageData)
 	PeerStatus() []PeerStatusProvider
@@ -90,19 +90,6 @@ type GroupProvider interface {
 	) error
 	AllNodes(except ...uint16) map[uint16]PeerSender   // Returns all the nodes in the group except specified.
 	OtherNodes(except ...uint16) map[uint16]PeerSender // Returns other nodes in the group (excluding Self and specified).
-	Close()
-}
-
-// PeerDomainProvider implements unordered set of peers which can dynamically change
-// All peers in the domain shares same peeringID. Each peer within domain is identified via its netID
-type PeerDomainProvider interface {
-	ReshufflePeers()
-	GetRandomOtherPeers(upToNumPeers int) []*cryptolib.PublicKey
-	UpdatePeers(newPeerPubKeys []*cryptolib.PublicKey)
-	Attach(receiver byte, callback func(recv *PeerMessageIn)) interface{}
-	Detach(attachID interface{})
-	SendMsgByPubKey(pubKey *cryptolib.PublicKey, msgReceiver byte, msgType byte, msgData []byte)
-	PeerStatus() []PeerStatusProvider
 	Close()
 }
 

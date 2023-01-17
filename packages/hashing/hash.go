@@ -11,6 +11,7 @@ import (
 	"golang.org/x/crypto/blake2b"
 	"golang.org/x/crypto/sha3"
 
+	"github.com/iotaledger/hive.go/core/marshalutil"
 	iotago "github.com/iotaledger/iota.go/v3"
 )
 
@@ -57,6 +58,14 @@ func HashValueFromBytes(b []byte) (HashValue, error) {
 	var ret HashValue
 	copy(ret[:], b)
 	return ret, nil
+}
+
+func HashValueFromMarshalUtil(mu *marshalutil.MarshalUtil) (HashValue, error) {
+	hashBytes, err := mu.ReadBytes(HashSize)
+	if err != nil {
+		return NilHash, err
+	}
+	return HashValueFromBytes(hashBytes)
 }
 
 func HashValueFromHex(s string) (HashValue, error) {

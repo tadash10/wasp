@@ -12,7 +12,6 @@ import (
 	"github.com/iotaledger/hive.go/core/logger"
 	"github.com/iotaledger/wasp/packages/cryptolib"
 	"github.com/iotaledger/wasp/packages/peering"
-	"github.com/iotaledger/wasp/packages/peering/domain"
 	"github.com/iotaledger/wasp/packages/peering/group"
 )
 
@@ -196,19 +195,6 @@ func (p *peeringNetworkProvider) PeerGroup(peeringID peering.PeeringID, peerPubK
 		peers[i] = p.senders[i]
 	}
 	return group.NewPeeringGroupProvider(p, peeringID, peers, p.log)
-}
-
-// PeerDomain creates peering.PeerDomainProvider.
-func (p *peeringNetworkProvider) PeerDomain(peeringID peering.PeeringID, peerPubKeys []*cryptolib.PublicKey) (peering.PeerDomainProvider, error) {
-	peers := make([]peering.PeerSender, len(peerPubKeys))
-	for i := range peerPubKeys {
-		n := p.network.nodeByPubKey(peerPubKeys[i])
-		if n == nil {
-			return nil, errors.New("unknown node pub key")
-		}
-		peers[i] = p.senders[i]
-	}
-	return domain.NewPeerDomain(p, peeringID, peers, p.log), nil
 }
 
 // Attach implements peering.NetworkProvider.

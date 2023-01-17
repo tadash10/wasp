@@ -8,6 +8,7 @@ import (
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/group/edwards25519"
 
+	"github.com/iotaledger/hive.go/core/marshalutil"
 	iotago "github.com/iotaledger/iota.go/v3"
 )
 
@@ -44,10 +45,23 @@ func NewPublicKeyFromBytes(publicKeyBytes []byte) (*PublicKey, error) {
 	return &PublicKey{publicKeyBytes}, nil
 }
 
+func NewPublicKeyFromMarshalUtil(mu *marshalutil.MarshalUtil) (*PublicKey, error) {
+	publicKeyBytes, err := mu.ReadBytes(PublicKeySize)
+	if err != nil {
+		return nil, err
+	}
+	return NewPublicKeyFromBytes(publicKeyBytes)
+}
+
 func (pkT *PublicKey) Clone() *PublicKey {
 	key := make([]byte, len(pkT.key))
 	copy(key, pkT.key)
 	return &PublicKey{key: key}
+}
+
+// To implement marshalutil.SimpleBinaryMarshaler.
+func (pkT *PublicKey) Bytes() []byte {
+	return pkT.AsBytes()
 }
 
 func (pkT *PublicKey) AsBytes() []byte {

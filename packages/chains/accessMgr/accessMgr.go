@@ -125,8 +125,8 @@ func (ami *accessMgrImpl) run(ctx context.Context, netAttachID interface{}) {
 	reqChainAccessNodesPipeOutCh := ami.reqChainAccessNodesPipe.Out()
 	reqChainDismissedPipeOutCh := ami.reqChainDismissedPipe.Out()
 	netRecvPipeOutCh := ami.netRecvPipe.Out()
-	debugTicker := time.NewTicker(distDebugTick)
-	timeTicker := time.NewTicker(distTimeTick)
+	distDebugTicker := time.NewTicker(distDebugTick)
+	distTimeTicker := time.NewTicker(distTimeTick)
 	for {
 		select {
 		case recv, ok := <-reqTrustedNodesOutCh:
@@ -153,16 +153,16 @@ func (ami *accessMgrImpl) run(ctx context.Context, netAttachID interface{}) {
 				continue
 			}
 			ami.handleNetMessage(recv)
-		case <-debugTicker.C:
+		case <-distDebugTicker.C:
 			ami.handleDistDebugTick()
-		case timestamp := <-timeTicker.C:
+		case timestamp := <-distTimeTicker.C:
 			ami.handleDistTimeTick(timestamp)
 		case <-ctx.Done():
 			// close(reqTrustedNodesOutCh) // TODO: Causes panic: send on closed channel
 			// close(reqChainAccessNodesOutCh)
 			// close(reqChainDismissedOutCh)
-			debugTicker.Stop()
-			timeTicker.Stop()
+			distDebugTicker.Stop()
+			distTimeTicker.Stop()
 			ami.net.Detach(netAttachID)
 			return
 		}

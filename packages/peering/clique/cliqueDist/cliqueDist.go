@@ -20,34 +20,45 @@ const (
 
 type Callback func(sessionID hashing.HashValue, linkStates []*LinkStatus)
 
+type CliqueDist interface {
+	AsGPA() gpa.GPA
+}
+
 type cliqueDist struct {
 	me        gpa.NodeID
 	now       time.Time
 	myKeyPair *cryptolib.KeyPair
 	sessions  *shrinkingmap.ShrinkingMap[hashing.HashValue, *session]
+	trusted   map[gpa.NodeID]*cryptolib.PublicKey
+	asGPA     gpa.GPA
 	log       *logger.Logger
 }
 
-var _ gpa.GPA = &cliqueDist{}
+var _ CliqueDist = &cliqueDist{}
 
-func PrintResult() string {
-	return "" // TODO: ....
-}
-
-func New(myKeyPair *cryptolib.KeyPair, now time.Time, log *logger.Logger) gpa.GPA {
-	return &cliqueDist{
+func New(myKeyPair *cryptolib.KeyPair, now time.Time, log *logger.Logger) CliqueDist {
+	cd := &cliqueDist{
 		me:        gpa.NodeIDFromPublicKey(myKeyPair.GetPublicKey()),
 		now:       now,
 		myKeyPair: myKeyPair,
 		sessions:  shrinkingmap.New[hashing.HashValue, *session](),
+		trusted:   map[gpa.NodeID]*cryptolib.PublicKey{},
 		log:       log,
 	}
+	cd.asGPA = gpa.NewOwnHandler(cd.me, cd)
+	return cd
+}
+
+func (cd *cliqueDist) AsGPA() gpa.GPA {
+	return cd.asGPA
 }
 
 func (cd *cliqueDist) Input(input gpa.Input) gpa.OutMessages {
 	switch input := input.(type) {
 	case *inputCheck:
 		return cd.handleInputCheck(input)
+	case *inputTrustedPeers:
+		return cd.handleInputTrustedPeers(input)
 	case *inputTimeTick:
 		return cd.handleInputTimeTick(input)
 	default:
@@ -87,9 +98,14 @@ func (cd *cliqueDist) handleInputCheck(input *inputCheck) gpa.OutMessages {
 		}
 		sessionID = hashing.HashDataBlake2b(sessionID[:])
 	}
-	s := newSession(sessionID, cd.me, cd.now, input.timeout, nil, cd.me, input.callback, input.nodePubs, cd.log)
+	s := newSession(sessionID, cd.me, cd.myKeyPair, cd.now, input.timeout, nil, cd.me, input.callback, input.nodePubs, cd.trusted, cd.log)
 	cd.sessions.Set(sessionID, s)
 	return s.MakeReqMsgs()
+}
+
+func (cd *cliqueDist) handleInputTrustedPeers(input *inputTrustedPeers) gpa.OutMessages {
+	cd.trusted = input.trusted
+	return nil
 }
 
 func (cd *cliqueDist) handleInputTimeTick(input *inputTimeTick) gpa.OutMessages {
@@ -113,7 +129,6 @@ func (cd *cliqueDist) handleInputTimeTick(input *inputTimeTick) gpa.OutMessages 
 }
 
 func (cd *cliqueDist) handleMsgQuery(msg *msgQuery) gpa.OutMessages {
-	cd.log.Debugf("handleMsgQuery, err=%+v", msg)
 	if err := msg.Validate(); err != nil {
 		cd.log.Warnf("failed to validate the received msgQuery: %v", err)
 		return nil
@@ -131,13 +146,12 @@ func (cd *cliqueDist) handleMsgQuery(msg *msgQuery) gpa.OutMessages {
 		// Duplicate request, ignore it.
 		return nil
 	}
-	msgS := newSession(msg.session, cd.me, cd.now, msg.timeout, msg.senderPubKey, msg.Sender(), nil, msg.subQuery, cd.log)
+	msgS := newSession(msg.session, cd.me, cd.myKeyPair, cd.now, msg.timeout, msg.senderPubKey, msg.Sender(), nil, msg.subQuery, cd.trusted, cd.log)
 	cd.sessions.Set(msg.session, msgS)
 	return msgS.MakeReqMsgs()
 }
 
 func (cd *cliqueDist) handleMsgResponse(msg *msgResponse) gpa.OutMessages {
-	cd.log.Debugf("handleMsgResponse, err=%+v", msg)
 	s, ok := cd.sessions.Get(msg.session)
 	if !ok {
 		// Ignore random or outdated responses.

@@ -33,12 +33,14 @@ type session struct {
 func newSession(
 	id hashing.HashValue,
 	me gpa.NodeID,
+	myKeyPair *cryptolib.KeyPair,
 	now time.Time,
 	timeout time.Duration,
 	initiatorPubKey *cryptolib.PublicKey,
 	initiatorNodeID gpa.NodeID,
 	callback Callback,
 	nodePubs []*cryptolib.PublicKey,
+	trusted map[gpa.NodeID]*cryptolib.PublicKey,
 	log *logger.Logger,
 ) *session {
 	nodeIDs := map[gpa.NodeID]*cryptolib.PublicKey{}
@@ -46,8 +48,15 @@ func newSession(
 		nodeIDs[gpa.NodeIDFromPublicKey(nodePub)] = nodePub
 	}
 	required := map[gpa.NodeID]interface{}{}
-	for nodeID := range nodeIDs {
+	collected := map[gpa.NodeID]map[gpa.NodeID]*LinkStatus{
+		me: {},
+	}
+	for nodeID, nodePub := range nodeIDs {
 		if nodeID.Equals(me) || nodeID.Equals(initiatorNodeID) {
+			continue
+		}
+		if _, ok := trusted[nodeID]; !ok {
+			collected[me][nodeID] = newLinkStatusFailed(id, myKeyPair, nodePub, fmt.Errorf("non-trusted"))
 			continue
 		}
 		required[nodeID] = nil
@@ -66,7 +75,7 @@ func newSession(
 		nodePubs:        nodePubs,
 		nodeIDs:         nodeIDs,
 		required:        required,
-		collected:       map[gpa.NodeID]map[gpa.NodeID]*LinkStatus{},
+		collected:       collected,
 		log:             log,
 	}
 }
@@ -135,7 +144,7 @@ func (s *session) AddResponse(msg *msgResponse) {
 		if !subRes.Validate(s.id) {
 			continue
 		}
-		s.addLinkStatus(msg.response, msg.Sender(), subDstNodeID)
+		s.addLinkStatus(subRes, msg.Sender(), subDstNodeID)
 	}
 }
 

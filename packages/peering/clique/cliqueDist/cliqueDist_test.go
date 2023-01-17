@@ -23,18 +23,27 @@ func TestBasic(t *testing.T) {
 	nodeKeys := make([]*cryptolib.KeyPair, nodeCount)
 	nodePubs := make([]*cryptolib.PublicKey, nodeCount)
 	nodeIDs := make([]gpa.NodeID, nodeCount)
+	nodeMap := map[gpa.NodeID]*cryptolib.PublicKey{}
 	for i := range nodeKeys {
 		nodeKeys[i] = cryptolib.NewKeyPair()
 		nodePubs[i] = nodeKeys[i].GetPublicKey()
 		nodeIDs[i] = gpa.NodeIDFromPublicKey(nodePubs[i])
+		nodeMap[nodeIDs[i]] = nodePubs[i]
 	}
 	now := time.Now()
 	nodes := map[gpa.NodeID]gpa.GPA{}
 	for i, nodeID := range nodeIDs {
-		nodes[nodeID] = cliqueDist.New(nodeKeys[i], now, log.Named(fmt.Sprintf("N%v", i)))
+		nodes[nodeID] = cliqueDist.New(nodeKeys[i], now, log.Named(fmt.Sprintf("N%v", i))).AsGPA()
 	}
 	tc := gpa.NewTestContext(nodes)
-
+	//
+	// Make all trusted.
+	for nodeID := range nodes {
+		tc.WithInput(nodeID, cliqueDist.NewInputTrustedPeers(nodeMap))
+	}
+	tc.RunAll()
+	//
+	// Run the check.
 	done := false
 	tc.WithInput(nodeIDs[0], cliqueDist.NewInputCheck(hashing.HashDataBlake2b([]byte{0}), nodePubs, time.Second, func(sessionID hashing.HashValue, linkStates []*cliqueDist.LinkStatus) {
 		for _, ls := range linkStates {
@@ -55,10 +64,12 @@ func TestSilent(t *testing.T) {
 	nodeKeys := make([]*cryptolib.KeyPair, nodeCount)
 	nodePubs := make([]*cryptolib.PublicKey, nodeCount)
 	nodeIDs := make([]gpa.NodeID, nodeCount)
+	nodeMap := map[gpa.NodeID]*cryptolib.PublicKey{}
 	for i := range nodeKeys {
 		nodeKeys[i] = cryptolib.NewKeyPair()
 		nodePubs[i] = nodeKeys[i].GetPublicKey()
 		nodeIDs[i] = gpa.NodeIDFromPublicKey(nodePubs[i])
+		nodeMap[nodeIDs[i]] = nodePubs[i]
 		t.Logf("NodeID[%v]=%v", i, nodeIDs[i].ShortString())
 	}
 	now := time.Now()
@@ -67,11 +78,18 @@ func TestSilent(t *testing.T) {
 		if i == nodeLast {
 			nodes[nodeID] = gpa.MakeTestSilentNode()
 		} else {
-			nodes[nodeID] = cliqueDist.New(nodeKeys[i], now, log.Named(fmt.Sprintf("N%v", i)))
+			nodes[nodeID] = cliqueDist.New(nodeKeys[i], now, log.Named(fmt.Sprintf("N%v", i))).AsGPA()
 		}
 	}
 	tc := gpa.NewTestContext(nodes)
-
+	//
+	// Make all trusted.
+	for nodeID := range nodes {
+		tc.WithInput(nodeID, cliqueDist.NewInputTrustedPeers(nodeMap))
+	}
+	tc.RunAll()
+	//
+	// Run the check.
 	done := false
 	tc.WithInput(nodeIDs[0], cliqueDist.NewInputCheck(hashing.HashDataBlake2b([]byte{0}), nodePubs, 5*time.Second, func(sessionID hashing.HashValue, linkStates []*cliqueDist.LinkStatus) {
 		for _, ls := range linkStates {

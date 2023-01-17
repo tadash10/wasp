@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/iotaledger/hive.go/core/marshalutil"
 	"github.com/iotaledger/wasp/packages/cryptolib"
 	"github.com/iotaledger/wasp/packages/gpa"
 	"github.com/iotaledger/wasp/packages/hashing"
@@ -46,11 +47,58 @@ func (m *msgQuery) Validate() error {
 }
 
 func (m *msgQuery) MarshalBinary() ([]byte, error) {
-	panic("implement") // TODO: Implement.
+	mu := marshalutil.New()
+	mu.WriteByte(msgTypeQuery)
+	mu.Write(m.session)
+	mu.Write(m.senderPubKey)
+	mu.WriteUint16(uint16(len(m.subQuery)))
+	for _, sq := range m.subQuery {
+		mu.Write(sq)
+	}
+	mu.WriteInt64(m.timeout.Milliseconds())
+	return mu.Bytes(), nil
 }
 
 func (m *msgQuery) UnmarshalBinary(data []byte) error {
-	panic("implement") // TODO: Implement.
+	var err error
+	var mt byte
+	mu := marshalutil.New(data)
+	if mt, err = mu.ReadByte(); err != nil {
+		return err
+	}
+	if mt != msgTypeQuery {
+		return fmt.Errorf("unexpected message type: %v", mt)
+	}
+	//
+	// m.session
+	if m.session, err = hashing.HashValueFromMarshalUtil(mu); err != nil {
+		return err
+	}
+	//
+	// m.senderPubKey
+	if m.senderPubKey, err = cryptolib.NewPublicKeyFromMarshalUtil(mu); err != nil {
+		return err
+	}
+	//
+	// m.subQuery
+	subQueryLen, err := mu.ReadUint16()
+	if err != nil {
+		return err
+	}
+	m.subQuery = make([]*cryptolib.PublicKey, subQueryLen)
+	for i := range m.subQuery {
+		if m.subQuery[i], err = cryptolib.NewPublicKeyFromMarshalUtil(mu); err != nil {
+			return err
+		}
+	}
+	//
+	// m.timeout
+	timeoutMs, err := mu.ReadInt64()
+	if err != nil {
+		return nil
+	}
+	m.timeout = time.Duration(timeoutMs) * time.Millisecond
+	return nil
 }
 
 func (m *msgQuery) String() string {

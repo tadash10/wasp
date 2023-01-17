@@ -41,7 +41,6 @@ import (
 	"github.com/iotaledger/hive.go/core/logger"
 	"github.com/iotaledger/wasp/packages/cryptolib"
 	"github.com/iotaledger/wasp/packages/peering"
-	"github.com/iotaledger/wasp/packages/peering/domain"
 	"github.com/iotaledger/wasp/packages/peering/group"
 	"github.com/iotaledger/wasp/packages/util"
 )
@@ -326,22 +325,6 @@ func (n *netImpl) PeerGroup(peeringID peering.PeeringID, peerPubKeys []*cryptoli
 		}
 	}
 	return group.NewPeeringGroupProvider(n, peeringID, groupPeers, n.log)
-}
-
-// Domain creates peering.PeerDomainProvider.
-func (n *netImpl) PeerDomain(peeringID peering.PeeringID, peerPubKeys []*cryptolib.PublicKey) (peering.PeerDomainProvider, error) {
-	peers := make([]peering.PeerSender, 0, len(peerPubKeys))
-	for _, peerPubKey := range peerPubKeys {
-		if peerPubKey.Equals(n.Self().PubKey()) {
-			continue
-		}
-		p, err := n.usePeer(peerPubKey)
-		if err != nil {
-			return nil, err
-		}
-		peers = append(peers, p)
-	}
-	return domain.NewPeerDomain(n, peeringID, peers, n.log), nil
 }
 
 // SendMsgByPubKey sends a message to the specified peer.

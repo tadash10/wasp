@@ -4,8 +4,10 @@
 package cliqueDist
 
 import (
+	"errors"
 	"fmt"
 
+	"github.com/iotaledger/hive.go/core/marshalutil"
 	"github.com/iotaledger/wasp/packages/cryptolib"
 	"github.com/iotaledger/wasp/packages/gpa"
 	"github.com/iotaledger/wasp/packages/hashing"
@@ -40,6 +42,58 @@ func newLinkStatusFailed(sessionID hashing.HashValue, src *cryptolib.KeyPair, ds
 		signature:  src.GetPrivateKey().Sign(sigMsg),
 		failReason: failReason,
 	}
+}
+
+func NewLinkStatusFromMarshalUtil(mu *marshalutil.MarshalUtil) (*LinkStatus, error) {
+	var err error
+	var u16 uint16
+	ls := &LinkStatus{}
+	if ls.srcPubKey, err = cryptolib.NewPublicKeyFromMarshalUtil(mu); err != nil {
+		return nil, fmt.Errorf("cannot unmarshal LinkStatus.srcPubKey: %w", err)
+	}
+	if ls.dstPubKey, err = cryptolib.NewPublicKeyFromMarshalUtil(mu); err != nil {
+		return nil, fmt.Errorf("cannot unmarshal LinkStatus.dstPubKey: %w", err)
+	}
+	if u16, err = mu.ReadUint16(); err != nil {
+		return nil, fmt.Errorf("cannot unmarshal LinkStatus.signatureLen: %w", err)
+	}
+	if ls.signature, err = mu.ReadBytes(int(u16)); err != nil {
+		return nil, fmt.Errorf("cannot unmarshal LinkStatus.signature: %w", err)
+	}
+	var success bool
+	if success, err = mu.ReadBool(); err != nil {
+		return nil, fmt.Errorf("cannot unmarshal LinkStatus.success: %w", err)
+	}
+	if success {
+		ls.failReason = nil
+	} else {
+		if u16, err = mu.ReadUint16(); err != nil {
+			return nil, fmt.Errorf("cannot unmarshal LinkStatus.failReasonLen: %w", err)
+		}
+		var failReasonBytes []byte
+		if failReasonBytes, err = mu.ReadBytes(int(u16)); err != nil {
+			return nil, fmt.Errorf("cannot unmarshal LinkStatus.failReasonBytes: %w", err)
+		}
+		ls.failReason = errors.New(string(failReasonBytes))
+	}
+	return ls, nil
+}
+
+func (ls *LinkStatus) Bytes() []byte {
+	mu := marshalutil.New()
+	mu.Write(ls.srcPubKey)
+	mu.Write(ls.dstPubKey)
+	mu.WriteUint16(uint16(len(ls.signature)))
+	mu.WriteBytes(ls.signature)
+	if ls.failReason == nil {
+		mu.WriteBool(true)
+	} else {
+		mu.WriteBool(false)
+		failReasonBytes := []byte(ls.failReason.Error())
+		mu.WriteUint16(uint16(len(failReasonBytes)))
+		mu.WriteBytes(failReasonBytes)
+	}
+	return mu.Bytes()
 }
 
 func (ls *LinkStatus) SrcPubKey() *cryptolib.PublicKey {
