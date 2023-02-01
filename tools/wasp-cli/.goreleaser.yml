@@ -8,6 +8,8 @@ builds:
   # Linux AMD64
   - id: wasp-cli-linux-amd64
     binary: wasp-cli
+    env:
+      - CGO_ENABLED=0
     ldflags:
       - -s -w -X=github.com/iotaledger/wasp/core/app.Version={{ .Summary }}
     main: main.go
@@ -21,7 +23,7 @@ builds:
   - id: wasp-cli-linux-arm64
     binary: wasp-cli
     env:
-      - CGO_ENABLED=1
+      - CGO_ENABLED=0
       - CC=aarch64-linux-gnu-gcc
       - CXX=aarch64-linux-gnu-g++
     ldflags:
@@ -37,7 +39,7 @@ builds:
   - id: wasp-cli-windows-amd64
     binary: wasp-cli
     env:
-      - CGO_ENABLED=1
+      - CGO_ENABLED=0
       - CC=/usr/bin/x86_64-w64-mingw32-gcc-posix
       - CXX=/usr/bin/x86_64-w64-mingw32-g++-posix
     ldflags:
@@ -48,6 +50,43 @@ builds:
       - windows
     goarch:
       - amd64
+
+  # macOS AMD64
+  - id: wasp-cli-macos-amd64
+    binary: wasp-cli
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X=github.com/iotaledger/wasp/core/app.Version={{ .Summary }}
+    main: main.go
+    dir: ./tools/wasp-cli
+    goos:
+      - darwin
+    goarch:
+      - amd64
+
+  # macOS ARM64
+  - id: wasp-cli-macos-arm64
+    binary: wasp-cli
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X=github.com/iotaledger/wasp/core/app.Version={{ .Summary }}
+    main: main.go
+    dir: ./tools/wasp-cli
+    goos:
+      - darwin
+    goarch:
+      - arm64
+
+universal_binaries:
+  # macOS ARM64+AMD64 (universal binary)
+  - id: wasp-cli-macos-universal
+    ids:
+      - wasp-cli-macos-amd64
+      - wasp-cli-macos-arm64
+    # remove the previous single-arch binaries from the artifact list.
+    replace: true
 
 # Archives
 archives:
