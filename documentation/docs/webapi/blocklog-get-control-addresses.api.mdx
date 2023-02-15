@@ -1,0 +1,38 @@
+---
+id: blocklog-get-control-addresses
+title: "Get the control addresses"
+description: "Get the control addresses"
+sidebar_label: "Get the control addresses"
+hide_title: true
+hide_table_of_contents: true
+api: {"operationId":"blocklogGetControlAddresses","parameters":[{"description":"ChainID (Bech32)","in":"path","name":"chainID","required":true,"schema":{"format":"string","type":"string"}}],"responses":{"200":{"content":{"application/json":{"schema":{"example":{"governingAddress":"governingAddress","sinceBlockIndex":1,"stateAddress":"stateAddress"},"properties":{"governingAddress":{"description":"The governing address (Bech32)","format":"string","type":"string","xml":{"name":"GoverningAddress"}},"sinceBlockIndex":{"description":"The block index (uint32","format":"int32","minimum":1,"type":"integer","xml":{"name":"SinceBlockIndex"}},"stateAddress":{"description":"The state address (Bech32)","format":"string","type":"string","xml":{"name":"StateAddress"}}},"required":["governingAddress","sinceBlockIndex","stateAddress"],"type":"object","xml":{"name":"ControlAddressesResponse"}}}},"description":"The chain info"},"401":{"content":{"application/json":{"schema":{"properties":{"error":{"format":"string","type":"string","xml":{"name":"Error"}},"missingPermission":{"format":"string","type":"string","xml":{"name":"MissingPermission"}}},"required":["error","missingPermission"],"type":"object","xml":{"name":"ValidationError"}}}},"description":"Unauthorized (Wrong permissions, missing token)"}},"security":[{"Authorization":[]}],"tags":["corecontracts"],"description":"Get the control addresses","method":"get","path":"/chains/{chainID}/core/blocklog/controladdresses","servers":[{"url":"/"}],"securitySchemes":{"Authorization":{"description":"JWT Token","in":"header","name":"Authorization","type":"apiKey"}},"info":{"description":"REST API for the Wasp node","title":"Wasp API","version":"0"},"postman":{"name":"Get the control addresses","description":{"type":"text/plain"},"url":{"path":["chains",":chainID","core","blocklog","controladdresses"],"host":["{{baseUrl}}"],"query":[],"variable":[{"disabled":false,"description":{"content":"(Required) ChainID (Bech32)","type":"text/plain"},"type":"any","value":"","key":"chainID"}]},"header":[{"key":"Accept","value":"application/json"}],"method":"GET","auth":{"type":"apikey","apikey":[{"type":"any","value":"Authorization","key":"key"},{"type":"any","value":"<API Key>","key":"value"},{"type":"any","value":"header","key":"in"}]}}}
+sidebar_class_name: "get api-method"
+info_path: docs/webapi/wasp-api
+custom_edit_url: null
+---
+
+import ApiTabs from "@theme/ApiTabs";
+import MimeTabs from "@theme/MimeTabs";
+import ParamsItem from "@theme/ParamsItem";
+import ResponseSamples from "@theme/ResponseSamples";
+import SchemaItem from "@theme/SchemaItem";
+import SchemaTabs from "@theme/SchemaTabs";
+import DiscriminatorTabs from "@theme/DiscriminatorTabs";
+import TabItem from "@theme/TabItem";
+
+## Get the control addresses
+
+
+
+Get the control addresses
+
+<details style={{"marginBottom":"1rem"}} data-collapsed={false} open={true}><summary style={{}}><strong>Path Parameters</strong></summary><div><ul><ParamsItem className={"paramsItem"} param={{"description":"ChainID (Bech32)","in":"path","name":"chainID","required":true,"schema":{"format":"string","type":"string"}}}></ParamsItem></ul></div></details><div><ApiTabs><TabItem label={"200"} value={"200"}><div>
+
+The chain info
+
+</div><div><MimeTabs schemaType={"response"}><TabItem label={"application/json"} value={"application/json"}><SchemaTabs><TabItem label={"Schema"} value={"Schema"}><details style={{}} data-collapsed={false} open={true}><summary style={{"textAlign":"left"}}><strong>Schema</strong></summary><div style={{"textAlign":"left","marginLeft":"1rem"}}></div><ul style={{"marginLeft":"1rem"}}><SchemaItem collapsible={false} name={"governingAddress"} required={false} schemaName={"string"} qualifierMessage={undefined} schema={{"description":"The governing address (Bech32)","format":"string","type":"string","xml":{"name":"GoverningAddress"}}}></SchemaItem><SchemaItem collapsible={false} name={"sinceBlockIndex"} required={false} schemaName={"int32"} qualifierMessage={"**Possible values:** `>= 1`"} schema={{"description":"The block index (uint32","format":"int32","minimum":1,"type":"integer","xml":{"name":"SinceBlockIndex"}}}></SchemaItem><SchemaItem collapsible={false} name={"stateAddress"} required={false} schemaName={"string"} qualifierMessage={undefined} schema={{"description":"The state address (Bech32)","format":"string","type":"string","xml":{"name":"StateAddress"}}}></SchemaItem></ul></details></TabItem><TabItem label={"Example (from schema)"} value={"Example (from schema)"}><ResponseSamples responseExample={"{\n  \"governingAddress\": \"governingAddress\",\n  \"sinceBlockIndex\": 1,\n  \"stateAddress\": \"stateAddress\"\n}"} language={"json"}></ResponseSamples></TabItem></SchemaTabs></TabItem></MimeTabs></div></TabItem><TabItem label={"401"} value={"401"}><div>
+
+Unauthorized (Wrong permissions, missing token)
+
+</div><div><MimeTabs schemaType={"response"}><TabItem label={"application/json"} value={"application/json"}><SchemaTabs><TabItem label={"Schema"} value={"Schema"}><details style={{}} data-collapsed={false} open={true}><summary style={{"textAlign":"left"}}><strong>Schema</strong></summary><div style={{"textAlign":"left","marginLeft":"1rem"}}></div><ul style={{"marginLeft":"1rem"}}><SchemaItem collapsible={false} name={"error"} required={false} schemaName={"string"} qualifierMessage={undefined} schema={{"format":"string","type":"string","xml":{"name":"Error"}}}></SchemaItem><SchemaItem collapsible={false} name={"missingPermission"} required={false} schemaName={"string"} qualifierMessage={undefined} schema={{"format":"string","type":"string","xml":{"name":"MissingPermission"}}}></SchemaItem></ul></details></TabItem><TabItem label={"Example (from schema)"} value={"Example (from schema)"}><ResponseSamples responseExample={"{\n  \"error\": \"string\",\n  \"missingPermission\": \"string\"\n}"} language={"json"}></ResponseSamples></TabItem></SchemaTabs></TabItem></MimeTabs></div></TabItem></ApiTabs></div>
+      

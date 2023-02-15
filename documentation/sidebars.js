@@ -426,6 +426,19 @@ module.exports = {
             ]
         },
         {
+            label: 'WebAPI',
+            type: 'category',
+            link: {
+                type: "generated-index",
+                title: "WebAPI API",
+                description:
+                  "This is a sample server WebAPI server. You can find out more about Swagger at http://swagger.io or on irc.freenode.net, #swagger. For this sample, you can use the api key special-key to test the authorization filters.",
+                slug: "/category/webapi",
+              },
+            items: require("./docs/webapi/sidebar.js")
+            
+        },
+        {
             type: 'doc',
             label: 'Configuration',
             id: 'configuration',

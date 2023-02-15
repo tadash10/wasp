@@ -1,0 +1,38 @@
+---
+id: governance-get-allowed-state-controller-addresses
+title: "Get the allowed state controller addresses"
+description: "Returns the allowed state controller addresses"
+sidebar_label: "Get the allowed state controller addresses"
+hide_title: true
+hide_table_of_contents: true
+api: {"description":"Returns the allowed state controller addresses","operationId":"governanceGetAllowedStateControllerAddresses","parameters":[{"description":"ChainID (Bech32)","in":"path","name":"chainID","required":true,"schema":{"format":"string","type":"string"}}],"responses":{"200":{"content":{"application/json":{"schema":{"example":{"addresses":["addresses","addresses"]},"properties":{"addresses":{"description":"The allowed state controller addresses (Bech32-encoded)","items":{"format":"string","type":"string"},"type":"array","xml":{"name":"Addresses","wrapped":true}}},"type":"object","xml":{"name":"GovAllowedStateControllerAddressesResponse"}}}},"description":"The state controller addresses"},"401":{"content":{"application/json":{"schema":{"properties":{"error":{"format":"string","type":"string","xml":{"name":"Error"}},"missingPermission":{"format":"string","type":"string","xml":{"name":"MissingPermission"}}},"required":["error","missingPermission"],"type":"object","xml":{"name":"ValidationError"}}}},"description":"Unauthorized (Wrong permissions, missing token)"}},"security":[{"Authorization":[]}],"tags":["corecontracts"],"method":"get","path":"/chains/{chainID}/core/governance/allowedstatecontrollers","servers":[{"url":"/"}],"securitySchemes":{"Authorization":{"description":"JWT Token","in":"header","name":"Authorization","type":"apiKey"}},"info":{"description":"REST API for the Wasp node","title":"Wasp API","version":"0"},"postman":{"name":"Get the allowed state controller addresses","description":{"content":"Returns the allowed state controller addresses","type":"text/plain"},"url":{"path":["chains",":chainID","core","governance","allowedstatecontrollers"],"host":["{{baseUrl}}"],"query":[],"variable":[{"disabled":false,"description":{"content":"(Required) ChainID (Bech32)","type":"text/plain"},"type":"any","value":"","key":"chainID"}]},"header":[{"key":"Accept","value":"application/json"}],"method":"GET","auth":{"type":"apikey","apikey":[{"type":"any","value":"Authorization","key":"key"},{"type":"any","value":"<API Key>","key":"value"},{"type":"any","value":"header","key":"in"}]}}}
+sidebar_class_name: "get api-method"
+info_path: docs/webapi/wasp-api
+custom_edit_url: null
+---
+
+import ApiTabs from "@theme/ApiTabs";
+import MimeTabs from "@theme/MimeTabs";
+import ParamsItem from "@theme/ParamsItem";
+import ResponseSamples from "@theme/ResponseSamples";
+import SchemaItem from "@theme/SchemaItem";
+import SchemaTabs from "@theme/SchemaTabs";
+import DiscriminatorTabs from "@theme/DiscriminatorTabs";
+import TabItem from "@theme/TabItem";
+
+## Get the allowed state controller addresses
+
+
+
+Returns the allowed state controller addresses
+
+<details style={{"marginBottom":"1rem"}} data-collapsed={false} open={true}><summary style={{}}><strong>Path Parameters</strong></summary><div><ul><ParamsItem className={"paramsItem"} param={{"description":"ChainID (Bech32)","in":"path","name":"chainID","required":true,"schema":{"format":"string","type":"string"}}}></ParamsItem></ul></div></details><div><ApiTabs><TabItem label={"200"} value={"200"}><div>
+
+The state controller addresses
+
+</div><div><MimeTabs schemaType={"response"}><TabItem label={"application/json"} value={"application/json"}><SchemaTabs><TabItem label={"Schema"} value={"Schema"}><details style={{}} data-collapsed={false} open={true}><summary style={{"textAlign":"left"}}><strong>Schema</strong></summary><div style={{"textAlign":"left","marginLeft":"1rem"}}></div><ul style={{"marginLeft":"1rem"}}><SchemaItem collapsible={false} name={"addresses"} required={false} schemaName={"string[]"} qualifierMessage={undefined} schema={{"description":"The allowed state controller addresses (Bech32-encoded)","items":{"format":"string","type":"string"},"type":"array","xml":{"name":"Addresses","wrapped":true}}}></SchemaItem></ul></details></TabItem><TabItem label={"Example (from schema)"} value={"Example (from schema)"}><ResponseSamples responseExample={"{\n  \"addresses\": [\n    \"addresses\",\n    \"addresses\"\n  ]\n}"} language={"json"}></ResponseSamples></TabItem></SchemaTabs></TabItem></MimeTabs></div></TabItem><TabItem label={"401"} value={"401"}><div>
+
+Unauthorized (Wrong permissions, missing token)
+
+</div><div><MimeTabs schemaType={"response"}><TabItem label={"application/json"} value={"application/json"}><SchemaTabs><TabItem label={"Schema"} value={"Schema"}><details style={{}} data-collapsed={false} open={true}><summary style={{"textAlign":"left"}}><strong>Schema</strong></summary><div style={{"textAlign":"left","marginLeft":"1rem"}}></div><ul style={{"marginLeft":"1rem"}}><SchemaItem collapsible={false} name={"error"} required={false} schemaName={"string"} qualifierMessage={undefined} schema={{"format":"string","type":"string","xml":{"name":"Error"}}}></SchemaItem><SchemaItem collapsible={false} name={"missingPermission"} required={false} schemaName={"string"} qualifierMessage={undefined} schema={{"format":"string","type":"string","xml":{"name":"MissingPermission"}}}></SchemaItem></ul></details></TabItem><TabItem label={"Example (from schema)"} value={"Example (from schema)"}><ResponseSamples responseExample={"{\n  \"error\": \"string\",\n  \"missingPermission\": \"string\"\n}"} language={"json"}></ResponseSamples></TabItem></SchemaTabs></TabItem></MimeTabs></div></TabItem></ApiTabs></div>
+      

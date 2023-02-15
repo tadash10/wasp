@@ -1,0 +1,38 @@
+---
+id: errors-get-error-message-format
+title: "Get the error message format of a specific error id"
+description: "Get the error message format of a specific error id"
+sidebar_label: "Get the error message format of a specific error id"
+hide_title: true
+hide_table_of_contents: true
+api: {"operationId":"errorsGetErrorMessageFormat","parameters":[{"description":"ChainID (Bech32)","in":"path","name":"chainID","required":true,"schema":{"format":"string","type":"string"}},{"description":"Contract (Hname as Hex)","in":"path","name":"contractHname","required":true,"schema":{"format":"string","type":"string"}},{"description":"Error Id (uint16)","in":"path","name":"errorID","required":true,"schema":{"format":"int32","minimum":1,"type":"integer"}}],"responses":{"200":{"content":{"application/json":{"schema":{"example":{"messageFormat":"messageFormat"},"properties":{"messageFormat":{"format":"string","type":"string","xml":{"name":"MessageFormat"}}},"required":["messageFormat"],"type":"object","xml":{"name":"ErrorMessageFormatResponse"}}}},"description":"The error message format"},"401":{"content":{"application/json":{"schema":{"properties":{"error":{"format":"string","type":"string","xml":{"name":"Error"}},"missingPermission":{"format":"string","type":"string","xml":{"name":"MissingPermission"}}},"required":["error","missingPermission"],"type":"object","xml":{"name":"ValidationError"}}}},"description":"Unauthorized (Wrong permissions, missing token)"}},"security":[{"Authorization":[]}],"tags":["corecontracts"],"description":"Get the error message format of a specific error id","method":"get","path":"/chains/{chainID}/core/errors/{contractHname}/message/{errorID}","servers":[{"url":"/"}],"securitySchemes":{"Authorization":{"description":"JWT Token","in":"header","name":"Authorization","type":"apiKey"}},"info":{"description":"REST API for the Wasp node","title":"Wasp API","version":"0"},"postman":{"name":"Get the error message format of a specific error id","description":{"type":"text/plain"},"url":{"path":["chains",":chainID","core","errors",":contractHname","message",":errorID"],"host":["{{baseUrl}}"],"query":[],"variable":[{"disabled":false,"description":{"content":"(Required) ChainID (Bech32)","type":"text/plain"},"type":"any","value":"","key":"chainID"},{"disabled":false,"description":{"content":"(Required) Contract (Hname as Hex)","type":"text/plain"},"type":"any","value":"","key":"contractHname"},{"disabled":false,"description":{"content":"(Required) Error Id (uint16)","type":"text/plain"},"type":"any","value":"","key":"errorID"}]},"header":[{"key":"Accept","value":"application/json"}],"method":"GET","auth":{"type":"apikey","apikey":[{"type":"any","value":"Authorization","key":"key"},{"type":"any","value":"<API Key>","key":"value"},{"type":"any","value":"header","key":"in"}]}}}
+sidebar_class_name: "get api-method"
+info_path: docs/webapi/wasp-api
+custom_edit_url: null
+---
+
+import ApiTabs from "@theme/ApiTabs";
+import MimeTabs from "@theme/MimeTabs";
+import ParamsItem from "@theme/ParamsItem";
+import ResponseSamples from "@theme/ResponseSamples";
+import SchemaItem from "@theme/SchemaItem";
+import SchemaTabs from "@theme/SchemaTabs";
+import DiscriminatorTabs from "@theme/DiscriminatorTabs";
+import TabItem from "@theme/TabItem";
+
+## Get the error message format of a specific error id
+
+
+
+Get the error message format of a specific error id
+
+<details style={{"marginBottom":"1rem"}} data-collapsed={false} open={true}><summary style={{}}><strong>Path Parameters</strong></summary><div><ul><ParamsItem className={"paramsItem"} param={{"description":"ChainID (Bech32)","in":"path","name":"chainID","required":true,"schema":{"format":"string","type":"string"}}}></ParamsItem><ParamsItem className={"paramsItem"} param={{"description":"Contract (Hname as Hex)","in":"path","name":"contractHname","required":true,"schema":{"format":"string","type":"string"}}}></ParamsItem><ParamsItem className={"paramsItem"} param={{"description":"Error Id (uint16)","in":"path","name":"errorID","required":true,"schema":{"format":"int32","minimum":1,"type":"integer"}}}></ParamsItem></ul></div></details><div><ApiTabs><TabItem label={"200"} value={"200"}><div>
+
+The error message format
+
+</div><div><MimeTabs schemaType={"response"}><TabItem label={"application/json"} value={"application/json"}><SchemaTabs><TabItem label={"Schema"} value={"Schema"}><details style={{}} data-collapsed={false} open={true}><summary style={{"textAlign":"left"}}><strong>Schema</strong></summary><div style={{"textAlign":"left","marginLeft":"1rem"}}></div><ul style={{"marginLeft":"1rem"}}><SchemaItem collapsible={false} name={"messageFormat"} required={false} schemaName={"string"} qualifierMessage={undefined} schema={{"format":"string","type":"string","xml":{"name":"MessageFormat"}}}></SchemaItem></ul></details></TabItem><TabItem label={"Example (from schema)"} value={"Example (from schema)"}><ResponseSamples responseExample={"{\n  \"messageFormat\": \"messageFormat\"\n}"} language={"json"}></ResponseSamples></TabItem></SchemaTabs></TabItem></MimeTabs></div></TabItem><TabItem label={"401"} value={"401"}><div>
+
+Unauthorized (Wrong permissions, missing token)
+
+</div><div><MimeTabs schemaType={"response"}><TabItem label={"application/json"} value={"application/json"}><SchemaTabs><TabItem label={"Schema"} value={"Schema"}><details style={{}} data-collapsed={false} open={true}><summary style={{"textAlign":"left"}}><strong>Schema</strong></summary><div style={{"textAlign":"left","marginLeft":"1rem"}}></div><ul style={{"marginLeft":"1rem"}}><SchemaItem collapsible={false} name={"error"} required={false} schemaName={"string"} qualifierMessage={undefined} schema={{"format":"string","type":"string","xml":{"name":"Error"}}}></SchemaItem><SchemaItem collapsible={false} name={"missingPermission"} required={false} schemaName={"string"} qualifierMessage={undefined} schema={{"format":"string","type":"string","xml":{"name":"MissingPermission"}}}></SchemaItem></ul></details></TabItem><TabItem label={"Example (from schema)"} value={"Example (from schema)"}><ResponseSamples responseExample={"{\n  \"error\": \"string\",\n  \"missingPermission\": \"string\"\n}"} language={"json"}></ResponseSamples></TabItem></SchemaTabs></TabItem></MimeTabs></div></TabItem></ApiTabs></div>
+      

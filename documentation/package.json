@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "scripts": {
     "start": "iota-wiki start",
-    "build": "iota-wiki build"
+    "build": "iota-wiki build",
+    "gen-api-docs": "docusaurus gen-api-docs"
   },
   "license": "UNLICENSED",
   "engines": {
@@ -12,10 +13,14 @@
   "dependencies": {
     "remark-code-import": "^0.3.0",
     "remark-import-partial": "^0.0.2",
-    "remark-remove-comments": "^0.2.0"
+    "remark-remove-comments": "^0.2.0",
+    "require-glob": "^4.1.0"
   },
   "devDependencies": {
-    "@iota-community/iota-wiki-cli": "iota-community/iota-wiki-cli#v2"
+    "@docusaurus/core": "2.2.0",
+    "@iota-community/iota-wiki-cli": "iota-community/iota-wiki-cli#v2",
+    "docusaurus-plugin-openapi-docs": "^1.5.2",
+    "docusaurus-theme-openapi-docs": "^1.5.2"
   },
   "packageManager": "yarn@3.2.0"
 }

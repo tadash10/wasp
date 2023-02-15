@@ -1,0 +1,42 @@
+---
+id: authenticate
+title: "Authenticate towards the node"
+description: "Authenticate towards the node"
+sidebar_label: "Authenticate towards the node"
+hide_title: true
+hide_table_of_contents: true
+api: {"operationId":"authenticate","requestBody":{"content":{"application/json":{"schema":{"example":{"password":"password","username":"username"},"properties":{"password":{"format":"string","type":"string","xml":{"name":"Password"}},"username":{"format":"string","type":"string","xml":{"name":"Username"}}},"required":["password","username"],"type":"object","xml":{"name":"LoginRequest"}}}},"description":"The login request","required":true},"responses":{"200":{"content":{"application/json":{"schema":{"example":{"jwt":"jwt","error":"error"},"properties":{"error":{"format":"string","type":"string","xml":{"name":"Error"}},"jwt":{"format":"string","type":"string","xml":{"name":"JWT"}}},"required":["error","jwt"],"type":"object","xml":{"name":"LoginResponse"}}}},"description":"Login was successful"},"401":{"content":{},"description":"Unauthorized (Wrong permissions, missing token)"}},"tags":["auth"],"x-codegen-request-body-name":"","description":"Authenticate towards the node","method":"post","path":"/auth","servers":[{"url":"/"}],"securitySchemes":{"Authorization":{"description":"JWT Token","in":"header","name":"Authorization","type":"apiKey"}},"jsonRequestBodyExample":{"password":"password","username":"username"},"info":{"description":"REST API for the Wasp node","title":"Wasp API","version":"0"},"postman":{"name":"Authenticate towards the node","description":{"type":"text/plain"},"url":{"path":["auth"],"host":["{{baseUrl}}"],"query":[],"variable":[]},"header":[{"key":"Content-Type","value":"application/json"},{"key":"Accept","value":"application/json"}],"method":"POST","body":{"mode":"raw","raw":"\"\"","options":{"raw":{"language":"json"}}}}}
+sidebar_class_name: "post api-method"
+info_path: docs/webapi/wasp-api
+custom_edit_url: null
+---
+
+import ApiTabs from "@theme/ApiTabs";
+import MimeTabs from "@theme/MimeTabs";
+import ParamsItem from "@theme/ParamsItem";
+import ResponseSamples from "@theme/ResponseSamples";
+import SchemaItem from "@theme/SchemaItem";
+import SchemaTabs from "@theme/SchemaTabs";
+import DiscriminatorTabs from "@theme/DiscriminatorTabs";
+import TabItem from "@theme/TabItem";
+
+## Authenticate towards the node
+
+
+
+Authenticate towards the node
+
+<MimeTabs><TabItem label={"application/json"} value={"application/json-schema"}><details style={{}} data-collapsed={false} open={true}><summary style={{"textAlign":"left"}}><strong>Request Body</strong><strong style={{"fontSize":"var(--ifm-code-font-size)","color":"var(--openapi-required)"}}> required</strong></summary><div style={{"textAlign":"left","marginLeft":"1rem"}}><div style={{"marginTop":"1rem","marginBottom":"1rem"}}>
+
+The login request
+
+</div></div><ul style={{"marginLeft":"1rem"}}><SchemaItem collapsible={false} name={"password"} required={true} schemaName={"string"} qualifierMessage={undefined} schema={{"format":"string","type":"string","xml":{"name":"Password"}}}></SchemaItem><SchemaItem collapsible={false} name={"username"} required={true} schemaName={"string"} qualifierMessage={undefined} schema={{"format":"string","type":"string","xml":{"name":"Username"}}}></SchemaItem></ul></details></TabItem></MimeTabs><div><ApiTabs><TabItem label={"200"} value={"200"}><div>
+
+Login was successful
+
+</div><div><MimeTabs schemaType={"response"}><TabItem label={"application/json"} value={"application/json"}><SchemaTabs><TabItem label={"Schema"} value={"Schema"}><details style={{}} data-collapsed={false} open={true}><summary style={{"textAlign":"left"}}><strong>Schema</strong></summary><div style={{"textAlign":"left","marginLeft":"1rem"}}></div><ul style={{"marginLeft":"1rem"}}><SchemaItem collapsible={false} name={"error"} required={false} schemaName={"string"} qualifierMessage={undefined} schema={{"format":"string","type":"string","xml":{"name":"Error"}}}></SchemaItem><SchemaItem collapsible={false} name={"jwt"} required={false} schemaName={"string"} qualifierMessage={undefined} schema={{"format":"string","type":"string","xml":{"name":"JWT"}}}></SchemaItem></ul></details></TabItem><TabItem label={"Example (from schema)"} value={"Example (from schema)"}><ResponseSamples responseExample={"{\n  \"jwt\": \"jwt\",\n  \"error\": \"error\"\n}"} language={"json"}></ResponseSamples></TabItem></SchemaTabs></TabItem></MimeTabs></div></TabItem><TabItem label={"401"} value={"401"}><div>
+
+Unauthorized (Wrong permissions, missing token)
+
+</div><div></div></TabItem></ApiTabs></div>
+      

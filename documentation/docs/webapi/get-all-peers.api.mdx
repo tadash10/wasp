@@ -1,0 +1,38 @@
+---
+id: get-all-peers
+title: "Get basic information about all configured peers"
+description: "Get basic information about all configured peers"
+sidebar_label: "Get basic information about all configured peers"
+hide_title: true
+hide_table_of_contents: true
+api: {"operationId":"getAllPeers","responses":{"200":{"content":{"application/json":{"schema":{"items":{"example":{"isAlive":true,"peeringURL":"localhost:4000","name":"name","publicKey":0,"numUsers":1,"isTrusted":true},"properties":{"isAlive":{"description":"Whether or not the peer is activated","example":true,"format":"boolean","type":"boolean","xml":{"name":"IsAlive"}},"isTrusted":{"example":true,"format":"boolean","type":"boolean","xml":{"name":"IsTrusted"}},"name":{"format":"string","type":"string","xml":{"name":"Name"}},"numUsers":{"description":"The amount of users attached to the peer","example":1,"format":"int32","type":"integer","xml":{"name":"NumUsers"}},"peeringURL":{"description":"The peering URL of the peer","example":"localhost:4000","format":"string","type":"string","xml":{"name":"PeeringURL"}},"publicKey":{"description":"The peers public key encoded in Hex","example":0,"format":"string","type":"string","xml":{"name":"PublicKey"}}},"required":["isAlive","isTrusted","name","numUsers","peeringURL","publicKey"],"type":"object","xml":{"name":"PeeringNodeStatusResponse"}},"type":"array"}}},"description":"A list of all peers"},"401":{"content":{"application/json":{"schema":{"properties":{"error":{"format":"string","type":"string","xml":{"name":"Error"}},"missingPermission":{"format":"string","type":"string","xml":{"name":"MissingPermission"}}},"required":["error","missingPermission"],"type":"object","xml":{"name":"ValidationError"}}}},"description":"Unauthorized (Wrong permissions, missing token)"}},"security":[{"Authorization":[]}],"tags":["node"],"description":"Get basic information about all configured peers","method":"get","path":"/node/peers","servers":[{"url":"/"}],"securitySchemes":{"Authorization":{"description":"JWT Token","in":"header","name":"Authorization","type":"apiKey"}},"info":{"description":"REST API for the Wasp node","title":"Wasp API","version":"0"},"postman":{"name":"Get basic information about all configured peers","description":{"type":"text/plain"},"url":{"path":["node","peers"],"host":["{{baseUrl}}"],"query":[],"variable":[]},"header":[{"key":"Accept","value":"application/json"}],"method":"GET","auth":{"type":"apikey","apikey":[{"type":"any","value":"Authorization","key":"key"},{"type":"any","value":"<API Key>","key":"value"},{"type":"any","value":"header","key":"in"}]}}}
+sidebar_class_name: "get api-method"
+info_path: docs/webapi/wasp-api
+custom_edit_url: null
+---
+
+import ApiTabs from "@theme/ApiTabs";
+import MimeTabs from "@theme/MimeTabs";
+import ParamsItem from "@theme/ParamsItem";
+import ResponseSamples from "@theme/ResponseSamples";
+import SchemaItem from "@theme/SchemaItem";
+import SchemaTabs from "@theme/SchemaTabs";
+import DiscriminatorTabs from "@theme/DiscriminatorTabs";
+import TabItem from "@theme/TabItem";
+
+## Get basic information about all configured peers
+
+
+
+Get basic information about all configured peers
+
+<div><ApiTabs><TabItem label={"200"} value={"200"}><div>
+
+A list of all peers
+
+</div><div><MimeTabs schemaType={"response"}><TabItem label={"application/json"} value={"application/json"}><SchemaTabs><TabItem label={"Schema"} value={"Schema"}><details style={{}} data-collapsed={false} open={true}><summary style={{"textAlign":"left"}}><strong>Schema</strong></summary><div style={{"textAlign":"left","marginLeft":"1rem"}}></div><ul style={{"marginLeft":"1rem"}}><li><div style={{"fontSize":"var(--ifm-code-font-size)","opacity":"0.6","marginLeft":"-.5rem","paddingBottom":".5rem"}}>Array [</div></li><SchemaItem collapsible={false} name={"isAlive"} required={false} schemaName={"boolean"} qualifierMessage={undefined} schema={{"description":"Whether or not the peer is activated","example":true,"format":"boolean","type":"boolean","xml":{"name":"IsAlive"}}}></SchemaItem><SchemaItem collapsible={false} name={"isTrusted"} required={false} schemaName={"boolean"} qualifierMessage={undefined} schema={{"example":true,"format":"boolean","type":"boolean","xml":{"name":"IsTrusted"}}}></SchemaItem><SchemaItem collapsible={false} name={"name"} required={false} schemaName={"string"} qualifierMessage={undefined} schema={{"format":"string","type":"string","xml":{"name":"Name"}}}></SchemaItem><SchemaItem collapsible={false} name={"numUsers"} required={false} schemaName={"int32"} qualifierMessage={undefined} schema={{"description":"The amount of users attached to the peer","example":1,"format":"int32","type":"integer","xml":{"name":"NumUsers"}}}></SchemaItem><SchemaItem collapsible={false} name={"peeringURL"} required={false} schemaName={"string"} qualifierMessage={undefined} schema={{"description":"The peering URL of the peer","example":"localhost:4000","format":"string","type":"string","xml":{"name":"PeeringURL"}}}></SchemaItem><SchemaItem collapsible={false} name={"publicKey"} required={false} schemaName={"string"} qualifierMessage={undefined} schema={{"description":"The peers public key encoded in Hex","example":0,"format":"string","type":"string","xml":{"name":"PublicKey"}}}></SchemaItem><li><div style={{"fontSize":"var(--ifm-code-font-size)","opacity":"0.6","marginLeft":"-.5rem"}}>]</div></li></ul></details></TabItem><TabItem label={"Example (from schema)"} value={"Example (from schema)"}><ResponseSamples responseExample={"[\n  {\n    \"isAlive\": true,\n    \"peeringURL\": \"localhost:4000\",\n    \"name\": \"name\",\n    \"publicKey\": 0,\n    \"numUsers\": 1,\n    \"isTrusted\": true\n  }\n]"} language={"json"}></ResponseSamples></TabItem></SchemaTabs></TabItem></MimeTabs></div></TabItem><TabItem label={"401"} value={"401"}><div>
+
+Unauthorized (Wrong permissions, missing token)
+
+</div><div><MimeTabs schemaType={"response"}><TabItem label={"application/json"} value={"application/json"}><SchemaTabs><TabItem label={"Schema"} value={"Schema"}><details style={{}} data-collapsed={false} open={true}><summary style={{"textAlign":"left"}}><strong>Schema</strong></summary><div style={{"textAlign":"left","marginLeft":"1rem"}}></div><ul style={{"marginLeft":"1rem"}}><SchemaItem collapsible={false} name={"error"} required={false} schemaName={"string"} qualifierMessage={undefined} schema={{"format":"string","type":"string","xml":{"name":"Error"}}}></SchemaItem><SchemaItem collapsible={false} name={"missingPermission"} required={false} schemaName={"string"} qualifierMessage={undefined} schema={{"format":"string","type":"string","xml":{"name":"MissingPermission"}}}></SchemaItem></ul></details></TabItem><TabItem label={"Example (from schema)"} value={"Example (from schema)"}><ResponseSamples responseExample={"{\n  \"error\": \"string\",\n  \"missingPermission\": \"string\"\n}"} language={"json"}></ResponseSamples></TabItem></SchemaTabs></TabItem></MimeTabs></div></TabItem></ApiTabs></div>
+      

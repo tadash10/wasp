@@ -1,0 +1,38 @@
+---
+id: accounts-get-account-nfti-ds
+title: "Get all NFT ids belonging to an account"
+description: "Get all NFT ids belonging to an account"
+sidebar_label: "Get all NFT ids belonging to an account"
+hide_title: true
+hide_table_of_contents: true
+api: {"operationId":"accountsGetAccountNFTIDs","parameters":[{"description":"ChainID (Bech32)","in":"path","name":"chainID","required":true,"schema":{"format":"string","type":"string"}},{"description":"AgentID (Bech32 for WasmVM | Hex for EVM)","in":"path","name":"agentID","required":true,"schema":{"format":"string","type":"string"}}],"responses":{"200":{"content":{"application/json":{"schema":{"example":{"nftIds":["nftIds","nftIds"]},"properties":{"nftIds":{"items":{"format":"string","type":"string"},"type":"array","xml":{"name":"NFTIDs","wrapped":true}}},"required":["nftIds"],"type":"object","xml":{"name":"AccountNFTsResponse"}}}},"description":"All NFT ids belonging to an account"},"401":{"content":{"application/json":{"schema":{"properties":{"error":{"format":"string","type":"string","xml":{"name":"Error"}},"missingPermission":{"format":"string","type":"string","xml":{"name":"MissingPermission"}}},"required":["error","missingPermission"],"type":"object","xml":{"name":"ValidationError"}}}},"description":"Unauthorized (Wrong permissions, missing token)"}},"security":[{"Authorization":[]}],"tags":["corecontracts"],"description":"Get all NFT ids belonging to an account","method":"get","path":"/chains/{chainID}/core/accounts/account/{agentID}/nfts","servers":[{"url":"/"}],"securitySchemes":{"Authorization":{"description":"JWT Token","in":"header","name":"Authorization","type":"apiKey"}},"info":{"description":"REST API for the Wasp node","title":"Wasp API","version":"0"},"postman":{"name":"Get all NFT ids belonging to an account","description":{"type":"text/plain"},"url":{"path":["chains",":chainID","core","accounts","account",":agentID","nfts"],"host":["{{baseUrl}}"],"query":[],"variable":[{"disabled":false,"description":{"content":"(Required) ChainID (Bech32)","type":"text/plain"},"type":"any","value":"","key":"chainID"},{"disabled":false,"description":{"content":"(Required) AgentID (Bech32 for WasmVM | Hex for EVM)","type":"text/plain"},"type":"any","value":"","key":"agentID"}]},"header":[{"key":"Accept","value":"application/json"}],"method":"GET","auth":{"type":"apikey","apikey":[{"type":"any","value":"Authorization","key":"key"},{"type":"any","value":"<API Key>","key":"value"},{"type":"any","value":"header","key":"in"}]}}}
+sidebar_class_name: "get api-method"
+info_path: docs/webapi/wasp-api
+custom_edit_url: null
+---
+
+import ApiTabs from "@theme/ApiTabs";
+import MimeTabs from "@theme/MimeTabs";
+import ParamsItem from "@theme/ParamsItem";
+import ResponseSamples from "@theme/ResponseSamples";
+import SchemaItem from "@theme/SchemaItem";
+import SchemaTabs from "@theme/SchemaTabs";
+import DiscriminatorTabs from "@theme/DiscriminatorTabs";
+import TabItem from "@theme/TabItem";
+
+## Get all NFT ids belonging to an account
+
+
+
+Get all NFT ids belonging to an account
+
+<details style={{"marginBottom":"1rem"}} data-collapsed={false} open={true}><summary style={{}}><strong>Path Parameters</strong></summary><div><ul><ParamsItem className={"paramsItem"} param={{"description":"ChainID (Bech32)","in":"path","name":"chainID","required":true,"schema":{"format":"string","type":"string"}}}></ParamsItem><ParamsItem className={"paramsItem"} param={{"description":"AgentID (Bech32 for WasmVM | Hex for EVM)","in":"path","name":"agentID","required":true,"schema":{"format":"string","type":"string"}}}></ParamsItem></ul></div></details><div><ApiTabs><TabItem label={"200"} value={"200"}><div>
+
+All NFT ids belonging to an account
+
+</div><div><MimeTabs schemaType={"response"}><TabItem label={"application/json"} value={"application/json"}><SchemaTabs><TabItem label={"Schema"} value={"Schema"}><details style={{}} data-collapsed={false} open={true}><summary style={{"textAlign":"left"}}><strong>Schema</strong></summary><div style={{"textAlign":"left","marginLeft":"1rem"}}></div><ul style={{"marginLeft":"1rem"}}><SchemaItem collapsible={false} name={"nftIds"} required={false} schemaName={"string[]"} qualifierMessage={undefined} schema={{"items":{"format":"string","type":"string"},"type":"array","xml":{"name":"NFTIDs","wrapped":true}}}></SchemaItem></ul></details></TabItem><TabItem label={"Example (from schema)"} value={"Example (from schema)"}><ResponseSamples responseExample={"{\n  \"nftIds\": [\n    \"nftIds\",\n    \"nftIds\"\n  ]\n}"} language={"json"}></ResponseSamples></TabItem></SchemaTabs></TabItem></MimeTabs></div></TabItem><TabItem label={"401"} value={"401"}><div>
+
+Unauthorized (Wrong permissions, missing token)
+
+</div><div><MimeTabs schemaType={"response"}><TabItem label={"application/json"} value={"application/json"}><SchemaTabs><TabItem label={"Schema"} value={"Schema"}><details style={{}} data-collapsed={false} open={true}><summary style={{"textAlign":"left"}}><strong>Schema</strong></summary><div style={{"textAlign":"left","marginLeft":"1rem"}}></div><ul style={{"marginLeft":"1rem"}}><SchemaItem collapsible={false} name={"error"} required={false} schemaName={"string"} qualifierMessage={undefined} schema={{"format":"string","type":"string","xml":{"name":"Error"}}}></SchemaItem><SchemaItem collapsible={false} name={"missingPermission"} required={false} schemaName={"string"} qualifierMessage={undefined} schema={{"format":"string","type":"string","xml":{"name":"MissingPermission"}}}></SchemaItem></ul></details></TabItem><TabItem label={"Example (from schema)"} value={"Example (from schema)"}><ResponseSamples responseExample={"{\n  \"error\": \"string\",\n  \"missingPermission\": \"string\"\n}"} language={"json"}></ResponseSamples></TabItem></SchemaTabs></TabItem></MimeTabs></div></TabItem></ApiTabs></div>
+      
