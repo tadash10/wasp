@@ -65,7 +65,7 @@ func (e *EVMService) getEVMBackend(chainID isc.ChainID) (*chainServer, error) {
 	e.evmChainServers[chainID] = &chainServer{
 		backend: backend,
 		rpc: jsonrpc.NewServer(
-			jsonrpc.NewEVMChain(backend, evmChainID),
+			jsonrpc.NewEVMChain(backend, evmChainID, e.log),
 			jsonrpc.NewAccountManager(nil),
 		),
 	}
