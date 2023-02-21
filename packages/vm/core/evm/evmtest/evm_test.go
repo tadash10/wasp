@@ -36,6 +36,7 @@ import (
 	"github.com/iotaledger/wasp/packages/vm/core/accounts"
 	"github.com/iotaledger/wasp/packages/vm/core/evm"
 	"github.com/iotaledger/wasp/packages/vm/core/evm/iscmagic"
+	"github.com/iotaledger/wasp/packages/vm/core/governance"
 	"github.com/iotaledger/wasp/packages/vm/gas"
 )
 
@@ -123,18 +124,18 @@ func TestGasRatio(t *testing.T) {
 	ethKey, _ := env.soloChain.NewEthereumAccountWithL2Funds()
 	storage := env.deployStorageContract(ethKey)
 
-	require.Equal(t, gas.DefaultEVMGasRatio, env.getGasRatio())
+	require.Equal(t, evmtypes.DefaultGasRatio, env.getGasRatio())
 
 	res, err := storage.store(43)
 	require.NoError(t, err)
 	initialGasFee := res.iscReceipt.GasFeeCharged
 
 	// only the owner can call the setGasRatio endpoint
-	newGasRatio := util.Ratio32{A: gas.DefaultEVMGasRatio.A * 10, B: gas.DefaultEVMGasRatio.B}
+	newGasRatio := util.Ratio32{A: evmtypes.DefaultGasRatio.A * 10, B: evmtypes.DefaultGasRatio.B}
 	newUserWallet, _ := env.solo.NewKeyPairWithFunds()
 	err = env.setGasRatio(newGasRatio, iscCallOptions{wallet: newUserWallet})
 	require.True(t, isc.VMErrorIs(err, vm.ErrUnauthorized))
-	require.Equal(t, gas.DefaultEVMGasRatio, env.getGasRatio())
+	require.Equal(t, evmtypes.DefaultGasRatio, env.getGasRatio())
 
 	// current owner is able to set a new gasRatio
 	err = env.setGasRatio(newGasRatio, iscCallOptions{wallet: env.soloChain.OriginatorPrivateKey})
@@ -182,7 +183,7 @@ func TestNotEnoughISCGas(t *testing.T) {
 
 	// only the owner can call the setGasRatio endpoint
 	// set the ISC gas ratio VERY HIGH
-	newGasRatio := util.Ratio32{A: gas.DefaultEVMGasRatio.A * 500, B: gas.DefaultEVMGasRatio.B}
+	newGasRatio := util.Ratio32{A: evmtypes.DefaultGasRatio.A * 5000, B: evmtypes.DefaultGasRatio.B}
 	err = env.setGasRatio(newGasRatio, iscCallOptions{wallet: env.soloChain.OriginatorPrivateKey})
 	require.NoError(t, err)
 	require.Equal(t, newGasRatio, env.getGasRatio())
@@ -217,7 +218,7 @@ func TestLoop(t *testing.T) {
 	gasRatio := env.getGasRatio()
 
 	for _, gasLimit := range []uint64{200000, 400000} {
-		baseTokensSent := gas.EVMGasToISC(gasLimit, &gasRatio)
+		baseTokensSent := evmtypes.EVMGasToISC(gasLimit, &gasRatio)
 		ethKey2, ethAddr2 := env.soloChain.NewEthereumAccountWithL2Funds(baseTokensSent)
 		require.EqualValues(t,
 			env.soloChain.L2BaseTokens(isc.NewEthereumAddressAgentID(ethAddr2)),
@@ -243,7 +244,7 @@ func TestLoopWithGasLeft(t *testing.T) {
 	gasRatio := env.getGasRatio()
 	var usedGas []uint64
 	for _, gasLimit := range []uint64{50000, 200000} {
-		baseTokensSent := gas.EVMGasToISC(gasLimit, &gasRatio)
+		baseTokensSent := evmtypes.EVMGasToISC(gasLimit, &gasRatio)
 		ethKey2, _ := env.soloChain.NewEthereumAccountWithL2Funds(baseTokensSent)
 		res, err := iscTest.callFn([]ethCallOptions{{
 			sender:   ethKey2,
@@ -273,7 +274,7 @@ func TestLoopWithGasLeftEstimateGas(t *testing.T) {
 	t.Log(estimatedGas)
 
 	gasRatio := env.getGasRatio()
-	baseTokensSent := gas.EVMGasToISC(estimatedGas, &gasRatio)
+	baseTokensSent := evmtypes.EVMGasToISC(estimatedGas, &gasRatio)
 	ethKey2, _ := env.soloChain.NewEthereumAccountWithL2Funds(baseTokensSent)
 	res, err := iscTest.callFn([]ethCallOptions{{
 		sender:   ethKey2,
@@ -1556,15 +1557,22 @@ func TestSolidityTransferCustomBaseTokens(t *testing.T) {
 	require.NoError(t, err)
 	env.soloChain.AssertL2NativeTokens(isc.NewAgentID(foundryOwnerAddr), nativeTokenID, big.NewInt(1_000_000))
 
-	env.setFeePolicy(gas.GasFeePolicy{
+	gasFeePolicy := gas.GasFeePolicy{
 		GasFeeTokenID:       nativeTokenID,
 		GasFeeTokenDecimals: customTokenDecimals,
 		GasPerToken:         100,
 		ValidatorFeeShare:   0,
 		EVMGasRatio:         gas.DefaultGasFeePolicy().EVMGasRatio,
-	}, iscCallOptions{
-		wallet: env.soloChain.OriginatorPrivateKey,
-	})
+	}
+	// set the custom token as the gas fee token
+	env.soloChain.PostRequestSync(
+		solo.NewCallParams(
+			governance.Contract.Name, governance.FuncSetFeePolicy.Name,
+			governance.ParamFeePolicyBytes,
+			gasFeePolicy.Bytes(),
+		),
+		env.soloChain.OriginatorPrivateKey,
+	)
 
 	// move some of these custom tokens into an ethereum account
 	tokensToMoveToEvmAccount := int64(500_000)

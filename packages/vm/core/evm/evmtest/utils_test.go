@@ -32,7 +32,6 @@ import (
 	"github.com/iotaledger/wasp/packages/vm/core/evm"
 	"github.com/iotaledger/wasp/packages/vm/core/evm/iscmagic"
 	"github.com/iotaledger/wasp/packages/vm/core/governance"
-	"github.com/iotaledger/wasp/packages/vm/gas"
 )
 
 var latestBlock = rpc.BlockNumberOrHashWithNumber(rpc.LatestBlockNumber)
@@ -162,17 +161,6 @@ func (e *soloChainEnv) getGasRatio() util.Ratio32 {
 func (e *soloChainEnv) setGasRatio(newGasRatio util.Ratio32, opts ...iscCallOptions) error {
 	opt := e.parseISCCallOptions(opts)
 	req := solo.NewCallParams(governance.Contract.Name, governance.FuncSetEVMGasRatio.Name, governance.ParamEVMGasRatio, newGasRatio.Bytes())
-	_, err := e.soloChain.PostRequestSync(req, opt.wallet)
-	return err
-}
-
-func (e *soloChainEnv) setFeePolicy(p gas.GasFeePolicy, opts ...iscCallOptions) error {
-	opt := e.parseISCCallOptions(opts)
-	req := solo.NewCallParams(
-		governance.Contract.Name, governance.FuncSetFeePolicy.Name,
-		governance.ParamFeePolicyBytes,
-		p.Bytes(),
-	)
 	_, err := e.soloChain.PostRequestSync(req, opt.wallet)
 	return err
 }

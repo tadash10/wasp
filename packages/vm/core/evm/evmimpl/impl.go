@@ -58,6 +58,7 @@ var Processor = evm.Contract.Processor(initialize,
 	evm.FuncGetStorage.WithHandler(restrictedView(getStorage)),
 	evm.FuncGetLogs.WithHandler(restrictedView(getLogs)),
 	evm.FuncGetChainID.WithHandler(restrictedView(getChainID)),
+	evm.FuncGetCallGasLimit.WithHandler(restrictedView(getCallGasLimit)),
 	evm.FuncGetERC20ExternalNativeTokenAddress.WithHandler(restrictedView(viewERC20ExternalNativeTokenAddress)),
 )
 
@@ -68,6 +69,9 @@ func initialize(ctx isc.Sandbox) dict.Dict {
 		genesisAlloc, err = evmtypes.DecodeGenesisAlloc(ctx.Params().MustGet(evm.FieldGenesisAlloc))
 		ctx.RequireNoError(err)
 	}
+
+	gasLimit, err := codec.DecodeUint64(ctx.Params().MustGet(evm.FieldBlockGasLimit), evm.BlockGasLimitDefault)
+	ctx.RequireNoError(err)
 
 	blockKeepAmount, err := codec.DecodeInt32(ctx.Params().MustGet(evm.FieldBlockKeepAmount), evm.BlockKeepAmountDefault)
 	ctx.RequireNoError(err)
@@ -93,19 +97,14 @@ func initialize(ctx isc.Sandbox) dict.Dict {
 
 	chainID := evmtypes.MustDecodeChainID(ctx.Params().MustGet(evm.FieldChainID), evm.DefaultChainID)
 
-	getFeePolicy := func() *gas.GasFeePolicy { return getFeePolicy(ctx) }
-	gasRatio := getFeePolicy().EVMGasRatio
 	emulator.Init(
 		evmStateSubrealm(ctx.State()),
 		chainID,
 		blockKeepAmount,
-		emulator.GasLimits{
-			Block: gas.EVMBlockGasLimit(&gasRatio),
-			Call:  gas.EVMCallGasLimit(&gasRatio),
-		},
+		gasLimit,
 		timestamp(ctx),
 		genesisAlloc,
-		newL2Balance(ctx, getFeePolicy),
+		newL2Balance(ctx),
 	)
 
 	// storing hname as a terminal value of the contract's state nil key.
@@ -141,10 +140,11 @@ func applyTransaction(ctx isc.Sandbox) dict.Dict {
 	var gasErr error
 	if result != nil {
 		// convert burnt EVM gas to ISC gas
+		gasRatio := getGasRatio(ctx)
 		ctx.Privileged().GasBurnEnable(true)
 		gasErr = panicutil.CatchPanic(
 			func() {
-				ctx.Gas().Burn(gas.BurnCodeEVM1P, gas.EVMGasToISC(result.UsedGas, &bctx.feePolicy.EVMGasRatio))
+				ctx.Gas().Burn(gas.BurnCodeEVM1P, evmtypes.EVMGasToISC(result.UsedGas, &gasRatio))
 			},
 		)
 		ctx.Privileged().GasBurnEnable(false)
@@ -355,6 +355,19 @@ func getBlockNumber(ctx isc.SandboxView) dict.Dict {
 	return result(new(big.Int).SetUint64(emu.BlockchainDB().GetNumber()).Bytes())
 }
 
+func getCallGasLimit(ctx isc.SandboxView) dict.Dict {
+	gasRatio := getGasRatio(ctx)
+	ret := evmtypes.ISCGasBudgetToEVM(gas.MaxGasPerRequest, &gasRatio)
+
+	emu := createEmulatorR(ctx)
+	evmBlockGasLimit := emu.BlockchainDB().GetGasLimit()
+	if evmBlockGasLimit < ret {
+		ret = evmBlockGasLimit
+	}
+
+	return result(codec.EncodeUint64(ret))
+}
+
 func getBlockByNumber(ctx isc.SandboxView) dict.Dict {
 	return blockResult(blockByNumber(ctx))
 }
@@ -450,8 +463,6 @@ func tryGetRevertError(res *core.ExecutionResult) error {
 	return res.Err
 }
 
-// estimateGas is called from the jsonrpc eth_estimateGas endpoint.
-// The VM is in estimate gas mode, and any state mutations are discarded.
 func estimateGas(ctx isc.Sandbox) dict.Dict {
 	// we only want to charge gas for the actual execution of the ethereum tx
 	ctx.Privileged().GasBurnEnable(false)
@@ -473,19 +484,19 @@ func estimateGas(ctx isc.Sandbox) dict.Dict {
 		ctx.Privileged().GasBurnEnable(true)
 		gasErr := panicutil.CatchPanic(
 			func() {
-				ctx.Gas().Burn(gas.BurnCodeEVM1P, gas.EVMGasToISC(res.UsedGas, &gasRatio))
+				ctx.Gas().Burn(gas.BurnCodeEVM1P, evmtypes.EVMGasToISC(res.UsedGas, &gasRatio))
 			},
 		)
 		ctx.Privileged().GasBurnEnable(false)
 		ctx.RequireNoError(gasErr)
 	}
 
-	finalEvmGasUsed := gas.ISCGasBurnedToEVM(ctx.Gas().Burned(), &gasRatio)
+	finalEvmGasUsed := evmtypes.ISCGasBurnedToEVM(ctx.Gas().Burned(), &gasRatio)
 
 	return result(codec.EncodeUint64(finalEvmGasUsed))
 }
 
 func getGasRatio(ctx isc.SandboxBase) util.Ratio32 {
 	gasRatioViewRes := ctx.CallView(governance.Contract.Hname(), governance.ViewGetEVMGasRatio.Hname(), nil)
-	return codec.MustDecodeRatio32(gasRatioViewRes.MustGet(governance.ParamEVMGasRatio), gas.DefaultEVMGasRatio)
+	return codec.MustDecodeRatio32(gasRatioViewRes.MustGet(governance.ParamEVMGasRatio), evmtypes.DefaultGasRatio)
 }

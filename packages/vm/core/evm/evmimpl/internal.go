@@ -29,7 +29,7 @@ import (
 
 type blockContext struct {
 	emu       *emulator.EVMEmulator
-	feePolicy *gas.GasFeePolicy
+	l2Balance *l2Balance
 	txs       []*types.Transaction
 	receipts  []*types.Receipt
 }
@@ -39,14 +39,8 @@ type blockContext struct {
 // for each ISC block.
 func openBlockContext(ctx isc.Sandbox) dict.Dict {
 	ctx.RequireCaller(&isc.NilAgentID{}) // called from ISC VM
-	feePolicy := getFeePolicy(ctx)
-	bctx := &blockContext{feePolicy: feePolicy}
-	bctx.emu = createEmulator(
-		ctx,
-		feePolicy,
-		newL2Balance(ctx, func() *gas.GasFeePolicy { return bctx.feePolicy }),
-	)
-	ctx.Privileged().SetBlockContext(bctx)
+	emu, l2Balance := createEmulator(ctx)
+	ctx.Privileged().SetBlockContext(&blockContext{emu: emu, l2Balance: l2Balance})
 	return nil
 }
 
@@ -60,7 +54,7 @@ func closeBlockContext(ctx isc.Sandbox) dict.Dict {
 
 func getBlockContext(ctx isc.Sandbox) *blockContext {
 	bctx := ctx.Privileged().BlockContext().(*blockContext)
-	bctx.feePolicy = getFeePolicy(ctx) // refresh in case it changed since the last tx
+	bctx.l2Balance.clearFeePolicyCache()
 	return bctx
 }
 
@@ -92,30 +86,22 @@ func (bctx *blockContext) mintBlock() {
 	bctx.emu.MintBlock()
 }
 
-func createEmulator(ctx isc.Sandbox, feePolicy *gas.GasFeePolicy, l2Balance *l2Balance) *emulator.EVMEmulator {
+func createEmulator(ctx isc.Sandbox) (*emulator.EVMEmulator, *l2Balance) {
+	l2Balance := newL2Balance(ctx)
 	return emulator.NewEVMEmulator(
 		evmStateSubrealm(ctx.State()),
 		timestamp(ctx),
-		emulator.GasLimits{
-			Block: gas.EVMBlockGasLimit(&feePolicy.EVMGasRatio),
-			Call:  gas.EVMCallGasLimit(&feePolicy.EVMGasRatio),
-		},
 		newMagicContract(ctx),
 		l2Balance,
-	)
+	), l2Balance
 }
 
 func createEmulatorR(ctx isc.SandboxView) *emulator.EVMEmulator {
-	feePolicy := getFeePolicy(ctx)
 	return emulator.NewEVMEmulator(
 		evmStateSubrealm(buffered.NewBufferedKVStore(ctx.StateR())),
 		timestamp(ctx),
-		emulator.GasLimits{
-			Block: gas.EVMBlockGasLimit(&feePolicy.EVMGasRatio),
-			Call:  gas.EVMCallGasLimit(&feePolicy.EVMGasRatio),
-		},
 		newMagicContractView(ctx),
-		newL2BalanceR(ctx, func() *gas.GasFeePolicy { return feePolicy }),
+		newL2BalanceR(ctx),
 	)
 }
 
@@ -227,28 +213,14 @@ func paramBlockNumber(ctx isc.SandboxView, emu *emulator.EVMEmulator, allowPrevi
 	return current
 }
 
-// TODO dropping "customtokens gas fee" might be the way to go
-func getFeePolicy(ctx isc.SandboxBase) *gas.GasFeePolicy {
-	res := ctx.CallView(
-		governance.Contract.Hname(),
-		governance.ViewGetFeePolicy.Hname(),
-		nil,
-	)
-	var err error
-	feePolicy, err := gas.FeePolicyFromBytes(res.MustGet(governance.ParamFeePolicyBytes))
-	ctx.RequireNoError(err)
-	return feePolicy
-}
-
 type l2BalanceR struct {
-	ctx          isc.SandboxBase
-	getFeePolicy func() *gas.GasFeePolicy
+	feePolicy *gas.GasFeePolicy
+	ctx       isc.SandboxBase
 }
 
-func newL2BalanceR(ctx isc.SandboxBase, getFeePolicy func() *gas.GasFeePolicy) *l2BalanceR {
+func newL2BalanceR(ctx isc.SandboxBase) *l2BalanceR {
 	return &l2BalanceR{
-		ctx:          ctx,
-		getFeePolicy: getFeePolicy,
+		ctx: ctx,
 	}
 }
 
@@ -257,11 +229,30 @@ type l2Balance struct {
 	ctx isc.Sandbox
 }
 
-func newL2Balance(ctx isc.Sandbox, getFeePolicy func() *gas.GasFeePolicy) *l2Balance {
+func newL2Balance(ctx isc.Sandbox) *l2Balance {
 	return &l2Balance{
-		l2BalanceR: newL2BalanceR(ctx, getFeePolicy),
+		l2BalanceR: newL2BalanceR(ctx),
 		ctx:        ctx,
 	}
+}
+
+// TODO dropping "customtokens gas fee" might be the way to go
+func (b *l2BalanceR) getFeePolicy() *gas.GasFeePolicy {
+	if b.feePolicy == nil {
+		res := b.ctx.CallView(
+			governance.Contract.Hname(),
+			governance.ViewGetFeePolicy.Hname(),
+			nil,
+		)
+		var err error
+		b.feePolicy, err = gas.FeePolicyFromBytes(res.MustGet(governance.ParamFeePolicyBytes))
+		b.ctx.RequireNoError(err)
+	}
+	return b.feePolicy
+}
+
+func (b *l2BalanceR) clearFeePolicyCache() {
+	b.feePolicy = nil
 }
 
 func (b *l2BalanceR) Get(addr common.Address) *big.Int {

@@ -27,16 +27,10 @@ import (
 
 type EVMEmulator struct {
 	timestamp   uint64
-	gasLimits   GasLimits
 	chainConfig *params.ChainConfig
 	kv          kv.KVStore
 	vmConfig    vm.Config
 	l2Balance   L2Balance
-}
-
-type GasLimits struct {
-	Block uint64
-	Call  uint64
 }
 
 var configCache *lru.Cache[int, *params.ChainConfig]
@@ -81,8 +75,8 @@ func newStateDB(store kv.KVStore, l2Balance L2Balance) *StateDB {
 	return NewStateDB(subrealm.New(store, keyStateDB), l2Balance)
 }
 
-func newBlockchainDB(store kv.KVStore, blockGasLimit uint64) *BlockchainDB {
-	return NewBlockchainDB(subrealm.New(store, keyBlockchainDB), blockGasLimit)
+func newBlockchainDB(store kv.KVStore) *BlockchainDB {
+	return NewBlockchainDB(subrealm.New(store, keyBlockchainDB))
 }
 
 // Init initializes the EVM state with the provided genesis allocation parameters
@@ -90,16 +84,16 @@ func Init(
 	store kv.KVStore,
 	chainID uint16,
 	blockKeepAmount int32,
-	gasLimits GasLimits,
+	gasLimit,
 	timestamp uint64,
 	alloc core.GenesisAlloc,
 	l2Balance L2Balance,
 ) {
-	bdb := newBlockchainDB(store, gasLimits.Block)
+	bdb := newBlockchainDB(store)
 	if bdb.Initialized() {
 		panic("evm state already initialized in kvstore")
 	}
-	bdb.Init(chainID, blockKeepAmount, timestamp)
+	bdb.Init(chainID, blockKeepAmount, gasLimit, timestamp)
 
 	statedb := newStateDB(store, l2Balance)
 	for addr, account := range alloc {
@@ -120,18 +114,16 @@ func Init(
 func NewEVMEmulator(
 	store kv.KVStore,
 	timestamp uint64,
-	gasLimits GasLimits,
 	magicContracts map[common.Address]vm.ISCMagicContract,
 	l2Balance L2Balance,
 ) *EVMEmulator {
-	bdb := newBlockchainDB(store, gasLimits.Block)
+	bdb := newBlockchainDB(store)
 	if !bdb.Initialized() {
 		panic("must initialize genesis block first")
 	}
 
 	return &EVMEmulator{
 		timestamp:   timestamp,
-		gasLimits:   gasLimits,
 		chainConfig: getConfig(int(bdb.GetChainID())),
 		kv:          store,
 		vmConfig:    vm.Config{MagicContracts: magicContracts},
@@ -144,15 +136,15 @@ func (e *EVMEmulator) StateDB() *StateDB {
 }
 
 func (e *EVMEmulator) BlockchainDB() *BlockchainDB {
-	return newBlockchainDB(e.kv, e.gasLimits.Block)
+	return newBlockchainDB(e.kv)
 }
 
-func (e *EVMEmulator) BlockGasLimit() uint64 {
-	return e.gasLimits.Block
+func (e *EVMEmulator) GasLimit() uint64 {
+	return e.BlockchainDB().GetGasLimit()
 }
 
-func (e *EVMEmulator) CallGasLimit() uint64 {
-	return e.gasLimits.Call
+func (e *EVMEmulator) GasLimitForViewCalls() uint64 {
+	return 10 * e.GasLimit()
 }
 
 func (e *EVMEmulator) ChainContext() core.ChainContext {
@@ -167,8 +159,9 @@ func (e *EVMEmulator) CallContract(call ethereum.CallMsg, gasBurnEnable func(boo
 	if call.GasPrice == nil {
 		call.GasPrice = big.NewInt(0)
 	}
-	if call.Gas == 0 {
-		call.Gas = e.gasLimits.Call
+	maxGas := e.GasLimitForViewCalls()
+	if call.Gas == 0 || call.Gas > maxGas {
+		call.Gas = maxGas
 	}
 	if call.Value == nil {
 		call.Value = big.NewInt(0)
@@ -183,15 +176,10 @@ func (e *EVMEmulator) CallContract(call ethereum.CallMsg, gasBurnEnable func(boo
 	return e.applyMessage(msg, statedb, pendingHeader, gasBurnEnable)
 }
 
-func (e *EVMEmulator) applyMessage(msg callMsg, statedb vm.StateDB, header *types.Header, gasBurnEnable func(bool)) (res *core.ExecutionResult, err error) {
+func (e *EVMEmulator) applyMessage(msg core.Message, statedb vm.StateDB, header *types.Header, gasBurnEnable func(bool)) (res *core.ExecutionResult, err error) {
 	blockContext := core.NewEVMBlockContext(header, e.ChainContext(), nil)
 	txContext := core.NewEVMTxContext(msg)
 	vmEnv := vm.NewEVM(blockContext, txContext, statedb, e.chainConfig, e.vmConfig)
-
-	if msg.CallMsg.Gas > e.gasLimits.Call {
-		msg.CallMsg.Gas = e.gasLimits.Call
-	}
-
 	gasPool := core.GasPool(msg.Gas())
 	vmEnv.Reset(txContext, statedb)
 	if gasBurnEnable != nil {
