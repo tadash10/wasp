@@ -86,6 +86,7 @@ func (bctx *blockContext) mintBlock() {
 	}
 
 	bctx.emu.MintBlock()
+	bctx.l2Balance.ctx.Log().Infof("mintBlock finished, current block: %d", bctx.emu.BlockchainDB().GetNumber())
 }
 
 func createEmulator(ctx isc.Sandbox) (*emulator.EVMEmulator, *l2Balance) {
