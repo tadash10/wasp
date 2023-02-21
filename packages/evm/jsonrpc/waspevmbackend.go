@@ -156,6 +156,6 @@ func (b *WaspEVMBackend) ISCStateByBlockIndex(blockIndex uint32) (state.State, e
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get state by index=%v: %s", blockIndex, err.Error())
 	}
-	b.chain.Log().Debugf("EVM got state by index=%v, blockIndex=%v, trieRoot=%v, from the store", blockIndex, latestState.BlockIndex(), latestState.TrieRoot())
+	b.chain.Log().Debugf("EVM got state by index=%v, blockIndex=%v, trieRoot=%v, from the store", blockIndex, stateByIndex.BlockIndex(), stateByIndex.TrieRoot())
 	return stateByIndex, nil
 }
