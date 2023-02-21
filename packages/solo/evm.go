@@ -72,6 +72,7 @@ func (ch *Chain) EVM() *jsonrpc.EVMChain {
 	return jsonrpc.NewEVMChain(
 		newJSONRPCSoloBackend(ch, parameters.L1().BaseToken),
 		evmtypes.MustDecodeChainID(ret.MustGet(evm.FieldResult)),
+		ch.log,
 	)
 }
 
