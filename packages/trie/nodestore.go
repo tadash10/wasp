@@ -30,12 +30,6 @@ func MustInitRoot(store KVWriter) Hash {
 }
 
 func openNodeStore(store KVReader, cacheSize ...int) *nodeStore {
-	size := defaultCacheSize
-	if len(cacheSize) > 0 {
-		size = cacheSize[0]
-	}
-
-	store = makeCachedKVReader(store, size)
 	return &nodeStore{
 		trieStore:  makeReaderPartition(store, partitionTrieNodes),
 		valueStore: makeReaderPartition(store, partitionValues),
