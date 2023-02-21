@@ -138,6 +138,7 @@ func (b *WaspEVMBackend) ISCLatestState() state.State {
 	if err != nil {
 		panic(fmt.Sprintf("couldn't get latest block index: %s ", err.Error()))
 	}
+	b.chain.Log().Debugf("EVM got latest state, blockIndex=%v, trieRoot=%v", latestState.BlockIndex(), latestState.TrieRoot())
 	return latestState
 }
 
@@ -148,7 +149,13 @@ func (b *WaspEVMBackend) ISCStateByBlockIndex(blockIndex uint32) (state.State, e
 		return nil, fmt.Errorf("couldn't get latest state: %s", err.Error())
 	}
 	if latestState.BlockIndex() == blockIndex {
+		b.chain.Log().Debugf("EVM got state by index=%v, blockIndex=%v, trieRoot=%v, it is the latest", blockIndex, latestState.BlockIndex(), latestState.TrieRoot())
 		return latestState, nil
 	}
-	return b.chain.Store().StateByIndex(blockIndex)
+	stateByIndex, err := b.chain.Store().StateByIndex(blockIndex)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't get state by index=%v: %s", blockIndex, err.Error())
+	}
+	b.chain.Log().Debugf("EVM got state by index=%v, blockIndex=%v, trieRoot=%v, from the store", blockIndex, latestState.BlockIndex(), latestState.TrieRoot())
+	return stateByIndex, nil
 }
