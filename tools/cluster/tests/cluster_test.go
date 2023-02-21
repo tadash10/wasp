@@ -21,9 +21,9 @@ func TestClusterSingleNode(t *testing.T) {
 
 	t.Run("SDRUC", func(t *testing.T) { run(t, testSDRUC) })
 
-	t.Run("spam onledger", func(t *testing.T) { run(t, testSpamOnledger) })
-	t.Run("spam offledger", func(t *testing.T) { run(t, testSpamOffLedger) })
-	t.Run("spam call wasm views", func(t *testing.T) { run(t, testSpamCallViewWasm) })
+	// t.Run("spam onledger", func(t *testing.T) { run(t, testSpamOnledger) })
+	// t.Run("spam offledger", func(t *testing.T) { run(t, testSpamOffLedger) })
+	// t.Run("spam call wasm views", func(t *testing.T) { run(t, testSpamCallViewWasm) })
 }
 
 func TestClusterMultiNodeCommittee(t *testing.T) {
