@@ -38,22 +38,22 @@ type blockContext struct {
 // requests in the ISC block. The purpose is to create a single Ethereum block
 // for each ISC block.
 func openBlockContext(ctx isc.Sandbox) dict.Dict {
-	ctx.Log().Debugf("openBlockContext begin")
+	println("openBlockContext begin")
 	ctx.RequireCaller(&isc.NilAgentID{}) // called from ISC VM
 	emu, l2Balance := createEmulator(ctx)
 	ctx.Privileged().SetBlockContext(&blockContext{emu: emu, l2Balance: l2Balance})
-	ctx.Log().Debugf("openBlockContext end, block number = ", emu.BlockchainDB().GetNumber())
+	println("openBlockContext end, block number = ", emu.BlockchainDB().GetNumber())
 	return nil
 }
 
 // closeBlockContext "mints" the Ethereum block after all requests in the ISC
 // block have been processed.
 func closeBlockContext(ctx isc.Sandbox) dict.Dict {
-	ctx.Log().Debugf("closeBlockContext begin")
+	println("closeBlockContext begin")
 	ctx.RequireCaller(&isc.NilAgentID{}) // called from ISC VM
 	bctx := getBlockContext(ctx)
 	bctx.mintBlock()
-	ctx.Log().Debugf("closeBlockContext end, block number = ", bctx.emu.BlockchainDB().GetNumber())
+	println("closeBlockContext end, block number = ", bctx.emu.BlockchainDB().GetNumber())
 	return nil
 }
 
