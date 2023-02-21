@@ -59,6 +59,8 @@ func getBlockContext(ctx isc.Sandbox) *blockContext {
 }
 
 func (bctx *blockContext) mintBlock() {
+	// logging through l2Balance doesnt seem right
+	bctx.l2Balance.ctx.Log().Infof("mintBlock, current pending block number: %d", bctx.emu.BlockchainDB().GetPendingBlockNumber())
 	// count txs where status = success (which are already stored in the pending block)
 	txCount := uint(0)
 	for i := range bctx.txs {
