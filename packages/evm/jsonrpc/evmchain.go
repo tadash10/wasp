@@ -134,6 +134,7 @@ func (e *EVMChain) checkEnoughL2FundsForGasBudget(sender common.Address, evmGas 
 
 func (e *EVMChain) iscStateFromEVMBlockNumber(blockNumber *big.Int) (state.State, error) {
 	if blockNumber == nil {
+		println("potato - iscStateFromEVMBlockNumber 1 - ", e.backend.ISCLatestState().BlockIndex())
 		return e.backend.ISCLatestState(), nil
 	}
 	if !blockNumber.IsUint64() {
@@ -144,7 +145,9 @@ func (e *EVMChain) iscStateFromEVMBlockNumber(blockNumber *big.Int) (state.State
 		return nil, fmt.Errorf("block number is too large: %s", blockNumber)
 	}
 	// the first EVM block (number 0) is "minted" at ISC block index 1 (init chain)
-	return e.backend.ISCStateByBlockIndex(uint32(n) + 1)
+	x, err := e.backend.ISCStateByBlockIndex(uint32(n) + 1)
+	println(" potato -  iscStateFromEVMBlockNumber 2 - ", x.BlockIndex())
+	return x, err
 }
 
 func (e *EVMChain) iscStateFromEVMBlockNumberOrHash(blockNumberOrHash rpc.BlockNumberOrHash) (state.State, error) {
@@ -209,6 +212,7 @@ func (e *EVMChain) BlockByNumber(blockNumber *big.Int) (*types.Block, error) {
 	}
 
 	block, err := evmtypes.DecodeBlock(ret.MustGet(evm.FieldResult))
+	println("potato - ", block.Number())
 	if err != nil {
 		return nil, err
 	}

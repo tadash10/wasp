@@ -64,6 +64,7 @@ func (e *EthService) BlockNumber() (*hexutil.Big, error) {
 	if err != nil {
 		return nil, e.resolveError(err)
 	}
+	println("potato BlockNumber", n.String())
 	return (*hexutil.Big)(n), nil
 }
 
