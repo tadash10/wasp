@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/labstack/echo/v4"
 
+	"github.com/iotaledger/hive.go/core/logger"
 	"github.com/iotaledger/wasp/packages/evm/jsonrpc"
 	"github.com/iotaledger/wasp/packages/isc"
 	"github.com/iotaledger/wasp/packages/parameters"
@@ -27,14 +28,16 @@ type EVMService struct {
 
 	chainService    interfaces.ChainService
 	networkProvider peering.NetworkProvider
+	log             *logger.Logger
 }
 
-func NewEVMService(chainService interfaces.ChainService, networkProvider peering.NetworkProvider) interfaces.EVMService {
+func NewEVMService(chainService interfaces.ChainService, networkProvider peering.NetworkProvider, log *logger.Logger) interfaces.EVMService {
 	return &EVMService{
 		chainService:    chainService,
 		evmChainServers: map[isc.ChainID]*chainServer{},
 		evmBackendMutex: sync.Mutex{},
 		networkProvider: networkProvider,
+		log:             log,
 	}
 }
 
