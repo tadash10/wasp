@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 
+	"github.com/iotaledger/hive.go/core/logger"
 	"github.com/iotaledger/wasp/packages/evm/evmtypes"
 	"github.com/iotaledger/wasp/packages/evm/evmutil"
 	"github.com/iotaledger/wasp/packages/kv/codec"
@@ -30,10 +31,11 @@ import (
 type EVMChain struct {
 	backend ChainBackend
 	chainID uint16
+	log     *logger.Logger
 }
 
-func NewEVMChain(backend ChainBackend, chainID uint16) *EVMChain {
-	return &EVMChain{backend, chainID}
+func NewEVMChain(backend ChainBackend, chainID uint16, log *logger.Logger) *EVMChain {
+	return &EVMChain{backend, chainID, log}
 }
 
 func (e *EVMChain) Signer() types.Signer {
