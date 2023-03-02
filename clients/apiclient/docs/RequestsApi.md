@@ -32,7 +32,7 @@ import (
 )
 
 func main() {
-    contractCallViewRequest := *openapiclient.NewContractCallViewRequest(*openapiclient.NewJSONDict(), "ChainId_example", "ContractHName_example", "ContractName_example", "FunctionHName_example", "FunctionName_example") // ContractCallViewRequest | Parameters
+    contractCallViewRequest := *openapiclient.NewContractCallViewRequest(*openapiclient.NewJSONDict([]openapiclient.Item{*openapiclient.NewItem("0x6b657931", "0x76616c756531")}), "ChainId_example", "ContractHName_example", "ContractName_example", "FunctionHName_example", "FunctionName_example") // ContractCallViewRequest | Parameters
 
     configuration := openapiclient.NewConfiguration()
     apiClient := openapiclient.NewAPIClient(configuration)

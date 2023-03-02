@@ -19,15 +19,17 @@ var _ MappedNullable = &JSONDict{}
 
 // JSONDict struct for JSONDict
 type JSONDict struct {
-	Items []Item `json:"Items,omitempty"`
+	// items
+	Items []Item `json:"items"`
 }
 
 // NewJSONDict instantiates a new JSONDict object
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewJSONDict() *JSONDict {
+func NewJSONDict(items []Item) *JSONDict {
 	this := JSONDict{}
+	this.Items = items
 	return &this
 }
 
@@ -39,34 +41,26 @@ func NewJSONDictWithDefaults() *JSONDict {
 	return &this
 }
 
-// GetItems returns the Items field value if set, zero value otherwise.
+// GetItems returns the Items field value
 func (o *JSONDict) GetItems() []Item {
-	if o == nil || isNil(o.Items) {
+	if o == nil {
 		var ret []Item
 		return ret
 	}
+
 	return o.Items
 }
 
-// GetItemsOk returns a tuple with the Items field value if set, nil otherwise
+// GetItemsOk returns a tuple with the Items field value
 // and a boolean to check if the value has been set.
 func (o *JSONDict) GetItemsOk() ([]Item, bool) {
-	if o == nil || isNil(o.Items) {
+	if o == nil {
 		return nil, false
 	}
 	return o.Items, true
 }
 
-// HasItems returns a boolean if a field has been set.
-func (o *JSONDict) HasItems() bool {
-	if o != nil && !isNil(o.Items) {
-		return true
-	}
-
-	return false
-}
-
-// SetItems gets a reference to the given []Item and assigns it to the Items field.
+// SetItems sets field value
 func (o *JSONDict) SetItems(v []Item) {
 	o.Items = v
 }
@@ -81,9 +75,7 @@ func (o JSONDict) MarshalJSON() ([]byte, error) {
 
 func (o JSONDict) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
-	if !isNil(o.Items) {
-		toSerialize["Items"] = o.Items
-	}
+	toSerialize["items"] = o.Items
 	return toSerialize, nil
 }
 
