@@ -292,7 +292,7 @@ func (d Dict) Equals(d1 Dict) bool {
 
 // JSONDict is the JSON-compatible representation of a Dict
 type JSONDict struct {
-	Items []Item
+	Items []Item `json:"items" swagger:"desc(items),required"`
 }
 
 // Item is a JSON-compatible representation of a single key-value pair

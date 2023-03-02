@@ -7,6 +7,8 @@ import (
 	"hash/crc32"
 	"math"
 
+	"github.com/shamaton/msgpack/v2"
+
 	"github.com/iotaledger/hive.go/serializer/v2/marshalutil"
 	"github.com/iotaledger/wasp/packages/hashing"
 )
@@ -163,11 +165,11 @@ func (e *UnresolvedVMError) deserializeParams(mu *marshalutil.MarshalUtil) error
 		return err
 	}
 
-	return json.Unmarshal(params, &e.Params)
+	return msgpack.Unmarshal(params, &e.Params)
 }
 
 func (e *UnresolvedVMError) serializeParams(mu *marshalutil.MarshalUtil) {
-	bytes, err := json.Marshal(e.Params)
+	bytes, err := msgpack.Marshal(e.Params)
 	if err != nil {
 		panic(err)
 	}

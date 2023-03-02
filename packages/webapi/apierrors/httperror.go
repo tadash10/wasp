@@ -7,14 +7,14 @@ import (
 )
 
 type HTTPErrorResult struct {
-	Message interface{}
-	Error   string
+	Message interface{} `json:"message"`
+	Error   string      `json:"error"`
 }
 
 type HTTPError struct {
-	HTTPCode        int
-	Message         interface{}
-	AdditionalError string
+	HTTPCode        int         `json:"httpCode"`
+	Message         interface{} `json:"message"`
+	AdditionalError string      `json:"additionalError"`
 }
 
 func NewHTTPError(httpCode int, message interface{}, err error) *HTTPError {

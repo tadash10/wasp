@@ -119,16 +119,19 @@ func MapRequestReceiptResponse(vmService interfaces.VMService, chainID isc.Chain
 		resolved, err := errors.Resolve(receipt.Error, func(contract string, function string, params dict.Dict) (dict.Dict, error) {
 			return vmService.CallViewByChainID(chainID, isc.Hn(contract), isc.Hn(function), params)
 		})
-		if err != nil {
-			return nil, err
-		}
 
-		response.Error = &models.BlockReceiptError{
-			Hash:         hexutil.EncodeUint64(uint64(resolved.Hash())),
-			ErrorMessage: resolved.Error(),
+		if err != nil {
+			response.Error = &models.BlockReceiptError{
+				Hash:         "",
+				ErrorMessage: "Error decoding failed: " + err.Error(),
+			}
+		} else {
+			response.Error = &models.BlockReceiptError{
+				Hash:         hexutil.EncodeUint64(uint64(resolved.Hash())),
+				ErrorMessage: resolved.Error(),
+			}
 		}
 	}
-
 	return response, nil
 }
 
