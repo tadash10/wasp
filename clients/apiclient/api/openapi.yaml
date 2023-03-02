@@ -3694,12 +3694,6 @@ components:
       properties:
         evmGasRatio:
           $ref: '#/components/schemas/Ratio32__'
-        gasFeeTokenId:
-          description: The gas fee token id. Empty if base token.
-          format: string
-          type: string
-          xml:
-            name: GasFeeTokenID
         gasPerToken:
           $ref: '#/components/schemas/Ratio32__'
         validatorFeeShare:
