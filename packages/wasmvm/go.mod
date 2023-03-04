@@ -12,7 +12,7 @@ require (
 	github.com/bytecodealliance/wasmtime-go/v6 v6.0.0
 	github.com/iotaledger/hive.go/logger v0.0.0-20230301135914-603c4dac79e1
 	github.com/iotaledger/iota.go/v3 v3.0.0-rc.1.0.20230223105330-ef33ea7fe34f
-	github.com/iotaledger/wasp v1.0.0-00010101000000-000000000000
+	github.com/iotaledger/wasp v0.3.8
 	github.com/second-state/WasmEdge-go v0.11.2
 	github.com/stretchr/testify v1.8.2
 	github.com/wasmerio/wasmer-go v1.0.4
