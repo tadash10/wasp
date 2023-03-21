@@ -40,7 +40,6 @@ import (
 	"github.com/iotaledger/wasp/packages/vm/gas"
 	"github.com/iotaledger/wasp/packages/vm/processors"
 	"github.com/iotaledger/wasp/packages/vm/runvm"
-	"github.com/iotaledger/wasp/packages/vm/vmcontext"
 )
 
 type tc struct {
@@ -457,7 +456,8 @@ func newEnv(t *testing.T, n, f int, reliable bool) *testEnv {
 	te.mempools = make([]mempool.Mempool, len(te.peerIdentities))
 	te.stores = make([]state.Store, len(te.peerIdentities))
 	for i := range te.peerIdentities {
-		te.stores[i] = origin.InitChain(state.NewStore(mapdb.NewMapDB()), dict.Dict{
+		te.stores[i] = state.NewStore(mapdb.NewMapDB())
+		origin.InitChain(te.stores[i], dict.Dict{
 			origin.ParamChainOwner: isc.NewAgentID(te.governor.Address()).Bytes(),
 		}, accounts.MinimumBaseTokensOnCommonAccount)
 		te.mempools[i] = mempool.New(
@@ -474,7 +474,7 @@ func newEnv(t *testing.T, n, f int, reliable bool) *testEnv {
 }
 
 func (te *testEnv) stateForAO(i int, ao *isc.AliasOutputWithID) state.State {
-	l1Commitment, err := vmcontext.L1CommitmentFromAliasOutput(ao.GetAliasOutput())
+	l1Commitment, err := transaction.L1CommitmentFromAliasOutput(ao.GetAliasOutput())
 	require.NoError(te.t, err)
 	st, err := te.stores[i].StateByTrieRoot(l1Commitment.TrieRoot())
 	require.NoError(te.t, err)
@@ -497,6 +497,7 @@ type MockMempoolMetrics struct {
 	processedRequestCounter int
 }
 
+func (m *MockMempoolMetrics) IncBlocksPerChain() {}
 func (m *MockMempoolMetrics) IncRequestsReceived(req isc.Request) {
 	if req.IsOffLedger() {
 		m.offLedgerRequestCounter++
@@ -509,9 +510,8 @@ func (m *MockMempoolMetrics) IncRequestsProcessed() {
 	m.processedRequestCounter++
 }
 
-func (m *MockMempoolMetrics) SetRequestProcessingTime(reqID isc.RequestID, elapse time.Duration) {}
-
-func (m *MockMempoolMetrics) IncBlocksPerChain() {}
+func (m *MockMempoolMetrics) IncRequestsAckMessages()                  {}
+func (m *MockMempoolMetrics) SetRequestProcessingTime(_ time.Duration) {}
 
 ////////////////////////////////////////////////////////////////////////////////
 

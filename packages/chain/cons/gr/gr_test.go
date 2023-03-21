@@ -30,11 +30,11 @@ import (
 	"github.com/iotaledger/wasp/packages/testutil/testlogger"
 	"github.com/iotaledger/wasp/packages/testutil/testpeers"
 	"github.com/iotaledger/wasp/packages/testutil/utxodb"
+	"github.com/iotaledger/wasp/packages/transaction"
 	"github.com/iotaledger/wasp/packages/vm/core/accounts"
 	"github.com/iotaledger/wasp/packages/vm/core/coreprocessors"
 	"github.com/iotaledger/wasp/packages/vm/gas"
 	"github.com/iotaledger/wasp/packages/vm/processors"
-	"github.com/iotaledger/wasp/packages/vm/vmcontext"
 )
 
 func TestGrBasic(t *testing.T) {
@@ -113,7 +113,9 @@ func testGrBasic(t *testing.T, n, f int, reliable bool) {
 		procCache := processors.MustNew(procConfig)
 		dkShare, err := dkShareProviders[i].LoadDKShare(cmtAddress)
 		require.NoError(t, err)
-		chainStore := origin.InitChain(state.NewStore(mapdb.NewMapDB()),
+		chainStore := state.NewStore(mapdb.NewMapDB())
+		origin.InitChain(
+			chainStore,
 			dict.Dict{origin.ParamChainOwner: isc.NewAgentID(originator.Address()).Bytes()},
 			accounts.MinimumBaseTokensOnCommonAccount,
 		)
@@ -305,7 +307,7 @@ func (tsm *testStateMgr) ConsensusDecidedState(ctx context.Context, aliasOutput 
 	tsm.lock.Lock()
 	defer tsm.lock.Unlock()
 	resp := make(chan state.State, 1)
-	stateCommitment, err := vmcontext.L1CommitmentFromAliasOutput(aliasOutput.GetAliasOutput())
+	stateCommitment, err := transaction.L1CommitmentFromAliasOutput(aliasOutput.GetAliasOutput())
 	if err != nil {
 		panic(err)
 	}
@@ -342,7 +344,7 @@ func (tsm *testStateMgr) tryRespond(hash hashing.HashValue) {
 }
 
 func commitmentHashFromAO(aliasOutput *isc.AliasOutputWithID) hashing.HashValue {
-	commitment, err := vmcontext.L1CommitmentFromAliasOutput(aliasOutput.GetAliasOutput())
+	commitment, err := transaction.L1CommitmentFromAliasOutput(aliasOutput.GetAliasOutput())
 	if err != nil {
 		panic(err)
 	}
