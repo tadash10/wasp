@@ -27,6 +27,7 @@ else ifeq (, $(shell which solc))
 else
 	cd packages/vm/core/evm/iscmagic && go generate
 	cd packages/evm/evmtest && go generate
+	cd tools/wasp-cli && SOLC_VERSION='$(shell solc --version)' go generate
 endif
 
 build-cli:

@@ -1,6 +1,8 @@
 // Copyright 2020 IOTA Stiftung
 // SPDX-License-Identifier: Apache-2.0
 
+//go:generate go run solc/gen.go
+
 package main
 
 import (
