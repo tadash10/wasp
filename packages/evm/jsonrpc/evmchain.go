@@ -55,12 +55,12 @@ func NewEVMChain(backend ChainBackend, pub *publisher.Publisher, log *logger.Log
 		if !ev.ChainID.Equals(*e.backend.ISCChainID()) {
 			return
 		}
-		state, err := e.backend.ISCStateByBlockIndex(ev.Payload.BlockIndex)
+		state, err := e.backend.ISCStateByBlockIndex(ev.Payload.BlockIndex())
 		if err != nil {
 			log.Error(err)
 			return
 		}
-		blockNumber := new(big.Int).SetUint64(evmBlockNumberByISCBlockIndex(ev.Payload.BlockIndex))
+		blockNumber := new(big.Int).SetUint64(evmBlockNumberByISCBlockIndex(ev.Payload.BlockIndex()))
 		block, err := e.blockByNumber(state, blockNumber)
 		if err != nil {
 			log.Error(err)
@@ -154,6 +154,19 @@ func (e *EVMChain) GasFeePolicy() (*gas.FeePolicy, error) {
 	return feePolicy, nil
 }
 
+func (e *EVMChain) gasLimits() (*gas.Limits, error) {
+	res, err := e.backend.ISCCallView(e.backend.ISCLatestState(), governance.Contract.Name, governance.ViewGetGasLimits.Name, nil)
+	if err != nil {
+		return nil, err
+	}
+	glBin := res.MustGet(governance.ParamGasLimitsBytes)
+	gasLimits, err := gas.LimitsFromBytes(glBin)
+	if err != nil {
+		return nil, err
+	}
+	return gasLimits, nil
+}
+
 func (e *EVMChain) SendTransaction(tx *types.Transaction) error {
 	chainID, err := e.ChainID()
 	if err != nil {
@@ -201,6 +214,16 @@ func (e *EVMChain) checkEnoughL2FundsForGasBudget(sender common.Address, evmGas 
 	iscGasBudgetAffordable := gasFeePolicy.GasBudgetFromTokens(balance.Uint64())
 
 	iscGasBudgetTx := gas.EVMGasToISC(evmGas, &gasRatio)
+
+	gasLimits, err := e.gasLimits()
+	if err != nil {
+		return fmt.Errorf("could not fetch the gas limits: %w", err)
+	}
+
+	if iscGasBudgetTx > gasLimits.MaxGasPerRequest {
+		iscGasBudgetTx = gasLimits.MaxGasPerRequest
+	}
+
 	if iscGasBudgetAffordable < iscGasBudgetTx {
 		return fmt.Errorf(
 			"sender doesn't have enough L2 funds to cover tx gas budget. Balance: %v, expected: %d",
@@ -238,7 +261,7 @@ func (e *EVMChain) iscStateFromEVMBlockNumberOrHash(blockNumberOrHash *rpc.Block
 }
 
 func (e *EVMChain) iscAliasOutputFromEVMBlockNumber(blockNumber *big.Int) (*isc.AliasOutputWithID, error) {
-	if blockNumber == nil {
+	if blockNumber == nil || blockNumber.Cmp(big.NewInt(int64(e.backend.ISCLatestState().BlockIndex()))) == 0 {
 		return e.backend.ISCLatestAliasOutput()
 	}
 	iscBlockIndex, err := iscBlockIndexByEVMBlockNumber(blockNumber)
@@ -252,19 +275,17 @@ func (e *EVMChain) iscAliasOutputFromEVMBlockNumber(blockNumber *big.Int) (*isc.
 	if iscBlockIndex == latestBlockIndex {
 		return e.backend.ISCLatestAliasOutput()
 	}
-	iscState, err := e.backend.ISCStateByBlockIndex(iscBlockIndex)
+	nextISCBlockIndex := iscBlockIndex + 1
+	nextISCState, err := e.backend.ISCStateByBlockIndex(nextISCBlockIndex)
 	if err != nil {
 		return nil, err
 	}
-	blocklogStatePartition := subrealm.NewReadOnly(iscState, kv.Key(blocklog.Contract.Hname().Bytes()))
-	bi, err := blocklog.GetBlockInfo(blocklogStatePartition, iscState.BlockIndex())
+	blocklogStatePartition := subrealm.NewReadOnly(nextISCState, kv.Key(blocklog.Contract.Hname().Bytes()))
+	nextBlock, err := blocklog.GetBlockInfo(blocklogStatePartition, nextISCBlockIndex)
 	if err != nil {
 		return nil, err
 	}
-	if bi.AliasOutput == nil {
-		return nil, fmt.Errorf("unknown L1 alias output corresponding to EVM block number %s", blockNumber)
-	}
-	return bi.AliasOutput, nil
+	return nextBlock.PreviousAliasOutput, nil
 }
 
 func (e *EVMChain) iscAliasOutputFromEVMBlockNumberOrHash(blockNumberOrHash *rpc.BlockNumberOrHash) (*isc.AliasOutputWithID, error) {
