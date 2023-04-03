@@ -1,9 +1,8 @@
-package verify
+package contract
 
 import (
 	"fmt"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -12,12 +11,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var ()
+var (
+	SolcVersion string
+)
 
-func initVerifyCmd() *cobra.Command {
+func initContractCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "verify <command>",
-		Short: "Verify code with Blockscout",
+		Use:   "contract <command>",
+		Short: "Verify contract source code with Blockscout",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			log.Check(cmd.Help())
@@ -31,15 +32,16 @@ func parseImportMappings(mappings []string) (map[string]string, error) {
 		if parts := strings.Split(mapping, "="); len(parts) != 2 {
 			return nil, fmt.Errorf("each mapping must be a single key to a single real path (i.e. @iscmagic=packages/vm/core/evm/iscmagic)")
 		} else {
-			result[parts[0]] = parts[1]
+			result[parts[0]] = strings.TrimSuffix(parts[1], "/")
 		}
 	}
 	return result, nil
 }
 
-func initContractCmd() *cobra.Command {
+func initContractVerifyCmd() *cobra.Command {
 
-	addressHash := new(common.Hash)
+	addressHash := new(common.Address)
+
 	var name string
 	var compilerVersion string
 	var optimization bool
@@ -50,8 +52,8 @@ func initContractCmd() *cobra.Command {
 	var importRemaps []string
 
 	cmd := &cobra.Command{
-		Use:   "contract <blockscoutAPIAddress> <addressHash> <name>  <contractSourceCodeFilePath> [--args]",
-		Short: "Verify a contract with blockscout",
+		Use:   "verify <blockscoutAPIAddress> <addressHash> <name>  <contractSourceCodeFilePath> [--args]",
+		Short: "Verify a contract's source code with blockscout",
 		Args:  cobra.ExactArgs(4),
 		Run: func(cmd *cobra.Command, args []string) {
 			if blockscoutAPI, err := url.Parse(args[0]); err != nil {
@@ -60,22 +62,19 @@ func initContractCmd() *cobra.Command {
 				panic(err)
 			} else if name = args[2]; len(name) < 1 {
 				panic(fmt.Errorf("the contract name must be more than 1 character long"))
-			} else if _, err := os.Stat(args[3]); err != nil {
+			} else if filePath := args[3]; len(filePath) < 1 {
 				panic(err)
 			} else if remap, err := parseImportMappings(importRemaps); err != nil {
 				panic(err)
 			} else if err := VerifyContract(
 				blockscoutAPI.String(),
 				NewContract(
-					addressHash,
+					common.BytesToAddress(common.FromHex(args[1])),
 					name,
-					args[3],
+					filePath,
 					compilerVersion,
 					constructorArguments,
-					evmVersion,
-					optimization,
 					autoDetectConstructorArguments,
-					optimizationRuns,
 					remap,
 				),
 			); err != nil {
@@ -95,11 +94,27 @@ func initContractCmd() *cobra.Command {
 	return cmd
 }
 
+func initContractVerificationStatusCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "check-status <blockscoutAPIAddress> <guid>",
+		Short: "Check the status of a requested contract verification.",
+		Args:  cobra.ExactArgs(2),
+		Run: func(cmd *cobra.Command, args []string) {
+			if blockscoutAPI, err := url.Parse(args[0]); err != nil {
+				panic(err)
+			} else if err := CheckVerificationStatus(blockscoutAPI.String(), args[1]); err != nil {
+				panic(err)
+			}
+		},
+	}
+
+	return cmd
+}
+
 func Init(rootCmd *cobra.Command) {
-	verifyCmd := initVerifyCmd()
-	rootCmd.AddCommand(verifyCmd)
-
 	contractCmd := initContractCmd()
+	rootCmd.AddCommand(contractCmd)
 
-	verifyCmd.AddCommand(contractCmd)
+	contractCmd.AddCommand(initContractVerifyCmd())
+	contractCmd.AddCommand(initContractVerificationStatusCmd())
 }
