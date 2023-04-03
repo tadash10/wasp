@@ -145,6 +145,7 @@ type chainNodeImpl struct {
 	chainMgr            gpa.AckHandler
 	chainStore          state.Store
 	nodeConn            NodeConnection
+	tangleTime          time.Time
 	mempool             mempool.Mempool
 	stateMgr            statemanager.StateMgr
 	recvAliasOutputPipe pipe.Pipe[*isc.AliasOutputWithID]
@@ -168,14 +169,17 @@ type chainNodeImpl struct {
 	accessLock             *sync.RWMutex          // Mutex for accessing informative fields from other threads.
 	activeCommitteeDKShare tcrypto.DKShare        // DKShare of the current active committee.
 	activeCommitteeNodes   []*cryptolib.PublicKey // The nodes acting as a committee for the latest consensus.
-	activeAccessNodes      []*cryptolib.PublicKey // All the nodes authorized for being access nodes (∪{{Self}, accessNodesFromNode, accessNodesFromChain, activeCommitteeNodes}).
+	activeAccessNodes      []*cryptolib.PublicKey // All the nodes authorized for being access nodes (∪{{Self}, accessNodesFromNode, accessNodesFrom{ACT, CNF}}, activeCommitteeNodes}).
 	accessNodesFromNode    []*cryptolib.PublicKey // Access nodes, as configured locally by a user in this node.
-	accessNodesFromChain   []*cryptolib.PublicKey // Access nodes, as configured in the governance contract (for the ActiveAO).
+	accessNodesFromCNF     []*cryptolib.PublicKey // Access nodes, as configured in the governance contract (for the active state).
+	accessNodesFromACT     []*cryptolib.PublicKey // Access nodes, as configured in the governance contract (for the confirmed state).
 	serverNodes            []*cryptolib.PublicKey // The nodes we can query (because they consider us an access node).
 	latestConfirmedAO      *isc.AliasOutputWithID // Confirmed by L1, can be lagging from latestActiveAO.
 	latestConfirmedState   state.State            // State corresponding to latestConfirmedAO, for performance reasons.
+	latestConfirmedStateAO *isc.AliasOutputWithID // Set only when the corresponding state is retrieved.
 	latestActiveAO         *isc.AliasOutputWithID // This is the AO the chain is build on.
 	latestActiveState      state.State            // State corresponding to latestActiveAO, for performance reasons.
+	latestActiveStateAO    *isc.AliasOutputWithID // Set only when the corresponding state is retrieved.
 	//
 	// Infrastructure.
 	netRecvPipe         pipe.Pipe[*peering.PeerMessageIn]
@@ -274,6 +278,7 @@ func New(
 		chainID:                chainID,
 		chainStore:             chainStore,
 		nodeConn:               nodeConn,
+		tangleTime:             time.Time{}, // Zero time, while we haven't received it from the L1.
 		recvAliasOutputPipe:    pipe.NewInfinitePipe[*isc.AliasOutputWithID](),
 		recvTxPublishedPipe:    pipe.NewInfinitePipe[*txPublished](),
 		recvMilestonePipe:      pipe.NewInfinitePipe[time.Time](),
@@ -295,12 +300,15 @@ func New(
 		activeCommitteeNodes:   []*cryptolib.PublicKey{},
 		activeAccessNodes:      nil, // Set bellow.
 		accessNodesFromNode:    nil, // Set bellow.
-		accessNodesFromChain:   nil, // Set bellow.
+		accessNodesFromACT:     nil, // Set bellow.
+		accessNodesFromCNF:     nil, // Set bellow.
 		serverNodes:            nil, // Set bellow.
 		latestConfirmedAO:      nil,
 		latestConfirmedState:   nil,
+		latestConfirmedStateAO: nil,
 		latestActiveAO:         nil,
 		latestActiveState:      nil,
+		latestActiveStateAO:    nil,
 		netRecvPipe:            pipe.NewInfinitePipe[*peering.PeerMessageIn](),
 		netPeeringID:           netPeeringID,
 		netPeerPubs:            map[gpa.NodeID]*cryptolib.PublicKey{},
@@ -316,10 +324,36 @@ func New(
 	chainMgr, err := chainMgr.New(
 		cni.me,
 		cni.chainID,
+		cni.chainStore,
 		consensusStateRegistry,
 		dkShareRegistryProvider,
 		cni.pubKeyAsNodeID,
-		cni.handleAccessNodesOnChainUpdatedCB, // Access nodes updated on the governance contract.
+		func() ([]*cryptolib.PublicKey, []*cryptolib.PublicKey) {
+			cni.accessLock.RLock()
+			defer cni.accessLock.RUnlock()
+			return cni.activeAccessNodes, cni.activeCommitteeNodes
+		},
+		func(ao *isc.AliasOutputWithID) {
+			cni.stateTrackerAct.TrackAliasOutput(ao, true)
+		},
+		func(dkShare tcrypto.DKShare) {
+			cni.accessLock.Lock()
+			cni.activeCommitteeDKShare = dkShare
+			activeCommitteeNodes := cni.activeCommitteeNodes
+			cni.accessLock.Unlock()
+			var newCommitteeNodes []*cryptolib.PublicKey
+			if dkShare == nil {
+				newCommitteeNodes = []*cryptolib.PublicKey{}
+			} else {
+				newCommitteeNodes = dkShare.GetNodePubKeys()
+			}
+			if !util.Same(newCommitteeNodes, activeCommitteeNodes) {
+				cni.log.Infof("Committee nodes updated to %v, was %v", newCommitteeNodes, activeCommitteeNodes)
+				cni.updateAccessNodes(func() {
+					cni.activeCommitteeNodes = newCommitteeNodes
+				})
+			}
+		},
 		cni.log.Named("CM"),
 	)
 	if err != nil {
@@ -358,7 +392,8 @@ func New(
 	cni.stateTrackerCnf = NewStateTracker(ctx, stateMgr, cni.handleStateTrackerCnfCB, cni.log.Named("ST.CNF"))
 	cni.updateAccessNodes(func() {
 		cni.accessNodesFromNode = accessNodesFromNode
-		cni.accessNodesFromChain = []*cryptolib.PublicKey{}
+		cni.accessNodesFromACT = []*cryptolib.PublicKey{}
+		cni.accessNodesFromCNF = []*cryptolib.PublicKey{}
 	})
 	cni.updateServerNodes([]*cryptolib.PublicKey{})
 	//
@@ -409,12 +444,13 @@ func New(
 }
 
 func (cni *chainNodeImpl) ReceiveOffLedgerRequest(request isc.OffLedgerRequest, sender *cryptolib.PublicKey) {
+	cni.log.Debugf("ReceiveOffLedgerRequest: %v from outside.", request.ID())
 	// TODO: What to do with the sender's pub key?
 	cni.mempool.ReceiveOffLedgerRequest(request)
 }
 
 func (cni *chainNodeImpl) AwaitRequestProcessed(ctx context.Context, requestID isc.RequestID, confirmed bool) <-chan *blocklog.RequestReceipt {
-	query, responseCh := newAwaitReceiptReq(ctx, requestID)
+	query, responseCh := newAwaitReceiptReq(ctx, requestID, cni.log)
 	if confirmed {
 		cni.awaitReceiptCnfCh <- query
 	} else {
@@ -530,21 +566,22 @@ func (cni *chainNodeImpl) run(ctx context.Context, cleanupFunc context.CancelFun
 	}
 }
 
-// This will always run in the main thread, because that's a callback for the chainMgr.
-func (cni *chainNodeImpl) handleAccessNodesOnChainUpdatedCB(accessNodesFromChain []*cryptolib.PublicKey) {
-	cni.log.Debugf("handleAccessNodesOnChainUpdatedCB")
-	cni.updateAccessNodes(func() {
-		cni.accessNodesFromChain = accessNodesFromChain
-	})
-}
-
 // The active state is needed by the mempool to cleanup the processed requests, etc.
 // The request/receipt awaits are already handled in the StateTracker.
 func (cni *chainNodeImpl) handleStateTrackerActCB(st state.State, from, till *isc.AliasOutputWithID, added, removed []state.Block) {
 	cni.log.Debugf("handleStateTrackerActCB")
 	cni.accessLock.Lock()
 	cni.latestActiveState = st
+	cni.latestActiveStateAO = till
 	cni.accessLock.Unlock()
+
+	newAccessNodes := governance.NewStateAccess(st).GetAccessNodes()
+	if !util.Same(newAccessNodes, cni.accessNodesFromACT) {
+		cni.updateAccessNodes(func() {
+			cni.accessNodesFromACT = newAccessNodes
+		})
+	}
+
 	cni.mempool.TrackNewChainHead(st, from, till, added, removed)
 }
 
@@ -557,7 +594,16 @@ func (cni *chainNodeImpl) handleStateTrackerCnfCB(st state.State, from, till *is
 	cni.log.Debugf("handleStateTrackerCnfCB")
 	cni.accessLock.Lock()
 	cni.latestConfirmedState = st
+	cni.latestConfirmedStateAO = till
 	cni.accessLock.Unlock()
+
+	newAccessNodes := governance.NewStateAccess(st).GetAccessNodes()
+	if !util.Same(newAccessNodes, cni.accessNodesFromCNF) {
+		cni.updateAccessNodes(func() {
+			cni.accessNodesFromCNF = newAccessNodes
+		})
+	}
+
 	l1Commitment, err := transaction.L1CommitmentFromAliasOutput(till.GetAliasOutput())
 	if err != nil {
 		panic(fmt.Errorf("cannot get L1Commitment from alias output: %w", err))
@@ -614,6 +660,7 @@ func (cni *chainNodeImpl) handleAliasOutput(ctx context.Context, aliasOutput *is
 
 func (cni *chainNodeImpl) handleMilestoneTimestamp(timestamp time.Time) {
 	cni.log.Debugf("handleMilestoneTimestamp: %v", timestamp)
+	cni.tangleTime = timestamp
 	cni.mempool.TangleTimeUpdated(timestamp)
 	cni.consensusInsts.ForEach(func(address iotago.Ed25519Address, consensusInstances *shrinkingmap.ShrinkingMap[cmtLog.LogIndex, *consensusInst]) bool {
 		consensusInstances.ForEach(func(li cmtLog.LogIndex, consensusInstance *consensusInst) bool {
@@ -639,7 +686,7 @@ func (cni *chainNodeImpl) handleNetMessage(ctx context.Context, recv *peering.Pe
 
 func (cni *chainNodeImpl) handleChainMgrOutput(ctx context.Context, outputUntyped gpa.Output) {
 	cni.log.Debugf("handleChainMgrOutput: %v", outputUntyped)
-	if outputUntyped == nil {
+	if outputUntyped == nil { // TODO: Will never be nil, fix it.
 		// TODO: Cleanup consensus instances for all the committees after some time.
 		// Not sure, if it is OK to terminate them immediately at this point.
 		// This is for the case, if the current node is not in a committee of a chain anymore.
@@ -686,6 +733,7 @@ func (cni *chainNodeImpl) handleChainMgrOutput(ctx context.Context, outputUntype
 	cni.latestActiveAO = output.LatestActiveAliasOutput()
 	if cni.latestActiveAO == nil {
 		cni.latestActiveState = nil
+		cni.latestActiveStateAO = nil
 	}
 	cni.accessLock.Unlock()
 }
@@ -740,16 +788,6 @@ func (cni *chainNodeImpl) ensureConsensusInput(ctx context.Context, needConsensu
 		ci.request = needConsensus
 		cni.stateTrackerAct.TrackAliasOutput(needConsensus.BaseAliasOutput, true)
 		ci.consensus.Input(needConsensus.BaseAliasOutput, outputCB, recoverCB)
-		//
-		// Update committee nodes, if changed.
-		cni.accessLock.Lock()
-		cni.activeCommitteeDKShare = needConsensus.DKShare
-		cni.accessLock.Unlock()
-		if !util.Same(ci.committee, cni.activeCommitteeNodes) {
-			cni.updateAccessNodes(func() {
-				cni.activeCommitteeNodes = ci.committee
-			})
-		}
 	}
 }
 
@@ -773,12 +811,14 @@ func (cni *chainNodeImpl) ensureConsensusInst(ctx context.Context, needConsensus
 				recoveryTimeout, redeliveryPeriod, printStatusPeriod,
 				cni.log.Named(fmt.Sprintf("C-%v.LI-%v", committeeAddr.String()[:10], logIndexCopy)),
 			)
-
 			consensusInstances.Set(addLogIndex, &consensusInst{
 				cancelFunc: consGrCancel,
 				consensus:  cgr,
 				committee:  dkShare.GetNodePubKeys(),
 			})
+			if !cni.tangleTime.IsZero() {
+				cgr.Time(cni.tangleTime)
+			}
 		}
 		addLogIndex = addLogIndex.Next()
 	}
@@ -839,6 +879,11 @@ func (cni *chainNodeImpl) sendMessages(outMsgs gpa.OutMessages) {
 		return
 	}
 	outMsgs.MustIterate(func(m gpa.Message) {
+		recipientPubKey, ok := cni.netPeerPubs[m.Recipient()]
+		if !ok {
+			cni.log.Warnf("Pub key for the recipient not found: %v", m.Recipient())
+			return
+		}
 		msgData, err := m.MarshalBinary()
 		if err != nil {
 			cni.log.Warnf("Failed to send a message: %v", err)
@@ -850,11 +895,11 @@ func (cni *chainNodeImpl) sendMessages(outMsgs gpa.OutMessages) {
 			MsgType:     msgTypeChainMgr,
 			MsgData:     msgData,
 		}
-		cni.net.SendMsgByPubKey(cni.netPeerPubs[m.Recipient()], pm)
+		cni.net.SendMsgByPubKey(recipientPubKey, pm)
 	})
 }
 
-// activeAccessNodes = ∪{{Self}, accessNodesFromNode, accessNodesFromChain, activeCommitteeNodes}
+// activeAccessNodes = ∪{{Self}, accessNodesFromNode, accessNodesFromACT, accessNodesFromCNF, activeCommitteeNodes}
 func (cni *chainNodeImpl) deriveActiveAccessNodes() {
 	nodes := []*cryptolib.PublicKey{cni.nodeIdentity.GetPublicKey()}
 	index := map[cryptolib.PublicKeyKey]bool{nodes[0].AsKey(): true}
@@ -864,7 +909,13 @@ func (cni *chainNodeImpl) deriveActiveAccessNodes() {
 			nodes = append(nodes, k)
 		}
 	}
-	for _, k := range cni.accessNodesFromChain {
+	for _, k := range cni.accessNodesFromACT {
+		if _, ok := index[k.AsKey()]; !ok {
+			index[k.AsKey()] = true
+			nodes = append(nodes, k)
+		}
+	}
+	for _, k := range cni.accessNodesFromCNF {
 		if _, ok := index[k.AsKey()]; !ok {
 			index[k.AsKey()] = true
 			nodes = append(nodes, k)
@@ -946,22 +997,48 @@ func (cni *chainNodeImpl) Log() *logger.Logger {
 	return cni.log
 }
 
-func (cni *chainNodeImpl) LatestAliasOutput() (confirmed, active *isc.AliasOutputWithID) {
+func (cni *chainNodeImpl) LatestAliasOutput(freshness StateFreshness) (*isc.AliasOutputWithID, error) {
 	cni.accessLock.RLock()
-	defer cni.accessLock.RUnlock()
-	return cni.latestConfirmedAO, cni.latestActiveAO
+	latestConfirmedAO := cni.latestConfirmedStateAO
+	// latestActiveAO := cni.latestActiveStateAO
+	cni.accessLock.RUnlock()
+	switch freshness {
+	case ActiveOrCommittedState:
+		// if latestActiveAO != nil { // TODO: Temporary.
+		// 	return latestActiveAO, nil
+		// }
+		if latestConfirmedAO != nil {
+			return latestConfirmedAO, nil
+		}
+		return nil, fmt.Errorf("have no active nor confirmed state")
+	case ConfirmedState:
+		if latestConfirmedAO != nil {
+			return latestConfirmedAO, nil
+		}
+		return nil, fmt.Errorf("have no confirmed state")
+	case ActiveState:
+		if latestConfirmedAO != nil { // TODO: Temporary.
+			return latestConfirmedAO, nil
+		}
+		// if latestActiveAO != nil { // TODO: Temporary.
+		// 	return latestActiveAO, nil
+		// }
+		return nil, fmt.Errorf("have no active state")
+	default:
+		panic(fmt.Errorf("Unexpected StateFreshness: %v", freshness))
+	}
 }
 
 func (cni *chainNodeImpl) LatestState(freshness StateFreshness) (state.State, error) {
 	cni.accessLock.RLock()
-	latestActiveState := cni.latestActiveState
+	// latestActiveState := cni.latestActiveState
 	latestConfirmedState := cni.latestConfirmedState
 	cni.accessLock.RUnlock()
 	switch freshness {
 	case ActiveOrCommittedState:
-		if latestActiveState != nil {
-			return latestActiveState, nil
-		}
+		// if latestActiveState != nil {  // TODO: Temporary.
+		// 	return latestActiveState, nil
+		// }
 		if latestConfirmedState != nil {
 			return latestConfirmedState, nil
 		}
@@ -974,9 +1051,12 @@ func (cni *chainNodeImpl) LatestState(freshness StateFreshness) (state.State, er
 		cni.log.Warn("Have no state, but someone asks for it, will query the state.")
 		return cni.chainStore.LatestState()
 	case ActiveState:
-		if latestActiveState != nil {
-			return latestActiveState, nil
+		if latestConfirmedState != nil { // TODO: Temporary.
+			return latestConfirmedState, nil
 		}
+		// if latestActiveState != nil { // TODO: Temporary.
+		// 	return latestActiveState, nil
+		// }
 		return nil, fmt.Errorf("chain %v has no active state", cni.chainID)
 	default:
 		panic(fmt.Errorf("Unexpected StateFreshness: %v", freshness))

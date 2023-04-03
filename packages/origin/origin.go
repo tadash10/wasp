@@ -1,6 +1,7 @@
 package origin
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -56,10 +57,10 @@ func InitChain(store state.Store, initParams dict.Dict, originDeposit uint64) st
 		return subrealm.New(d, kv.Key(contract.Hname().Bytes()))
 	}
 
-	evmChainID := evmtypes.MustDecodeChainID(initParams.MustGet(ParamEVMChainID), evm.DefaultChainID)
-	blockKeepAmount := codec.MustDecodeInt32(initParams.MustGet(ParamEVMBlockKeep), evm.BlockKeepAmountDefault)
+	evmChainID := evmtypes.MustDecodeChainID(initParams.Get(ParamEVMChainID), evm.DefaultChainID)
+	blockKeepAmount := codec.MustDecodeInt32(initParams.Get(ParamEVMBlockKeep), evm.BlockKeepAmountDefault)
 
-	chainOwner := codec.MustDecodeAgentID(initParams.MustGet(ParamChainOwner), &isc.NilAgentID{})
+	chainOwner := codec.MustDecodeAgentID(initParams.Get(ParamChainOwner), &isc.NilAgentID{})
 
 	// init the state of each core contract
 	rootimpl.SetInitialState(contractState(root.Contract))
@@ -94,8 +95,31 @@ func InitChainByAliasOutput(chainStore state.Store, aliasOutput *isc.AliasOutput
 			panic(fmt.Sprintf("invalid parameters on origin AO, %s", err.Error()))
 		}
 	}
-	commonAccountAmount := aliasOutput.GetAliasOutput().Amount - parameters.L1().Protocol.RentStructure.MinRent(aliasOutput.GetAliasOutput())
-	return InitChain(chainStore, initParams, commonAccountAmount)
+	l1params := parameters.L1()
+	aoMinSD := l1params.Protocol.RentStructure.MinRent(aliasOutput.GetAliasOutput())
+	commonAccountAmount := aliasOutput.GetAliasOutput().Amount - aoMinSD
+	originBlock := InitChain(chainStore, initParams, commonAccountAmount)
+
+	originAOStateMetadata, err := transaction.StateMetadataFromBytes(aliasOutput.GetStateMetadata())
+	if err != nil {
+		panic(fmt.Sprintf("invalid state metadata on origin AO: %s", err.Error()))
+	}
+	if !originBlock.L1Commitment().Equals(originAOStateMetadata.L1Commitment) {
+		l1paramsJSON, err := json.Marshal(l1params)
+		if err != nil {
+			l1paramsJSON = []byte(fmt.Sprintf("unable to marshaljson l1params: %s", err.Error()))
+		}
+		x := (fmt.Sprintf(
+			"L1Commitment mismatch between originAO / originBlock: %s / %s, AOminSD: %d, L1params: %s",
+			originAOStateMetadata.L1Commitment,
+			originBlock.L1Commitment(),
+			aoMinSD,
+			string(l1paramsJSON),
+		))
+		println(x)
+		panic(x)
+	}
+	return originBlock
 }
 
 func calcStateMetadata(initParams dict.Dict, commonAccountAmount uint64) []byte {
@@ -128,14 +152,14 @@ func NewChainOriginTransaction(
 	if initParams == nil {
 		initParams = dict.New()
 	}
-	if initParams.MustGet(ParamChainOwner) == nil {
+	if initParams.Get(ParamChainOwner) == nil {
 		// default chain owner to the gov address
 		initParams.Set(ParamChainOwner, isc.NewAgentID(governanceControllerAddress).Bytes())
 	}
 
 	aliasOutput := &iotago.AliasOutput{
 		Amount:        deposit,
-		StateMetadata: calcStateMetadata(initParams, deposit),
+		StateMetadata: calcStateMetadata(initParams, deposit), // NOTE: Updated bellow.
 		Conditions: iotago.UnlockConditions{
 			&iotago.StateControllerAddressUnlockCondition{Address: stateControllerAddress},
 			&iotago.GovernorAddressUnlockCondition{Address: governanceControllerAddress},

@@ -200,9 +200,9 @@ func New(
 	mpi := &mempoolImpl{
 		chainID:                        chainID,
 		tangleTime:                     time.Time{},
-		timePool:                       NewTimePool(),
-		onLedgerPool:                   NewTypedPool[isc.OnLedgerRequest](waitReq),
-		offLedgerPool:                  NewTypedPool[isc.OffLedgerRequest](waitReq),
+		timePool:                       NewTimePool(metrics.SetTimePoolSize, log.Named("TIM")),
+		onLedgerPool:                   NewTypedPool[isc.OnLedgerRequest](waitReq, metrics.SetOnLedgerPoolSize, log.Named("ONL")),
+		offLedgerPool:                  NewTypedPool[isc.OffLedgerRequest](waitReq, metrics.SetOffLedgerPoolSize, log.Named("OFF")),
 		chainHeadAO:                    nil,
 		serverNodesUpdatedPipe:         pipe.NewInfinitePipe[*reqServerNodesUpdated](),
 		serverNodes:                    []*cryptolib.PublicKey{},
@@ -600,6 +600,7 @@ func (mpi *mempoolImpl) handleReceiveOnLedgerRequest(request isc.OnLedgerRequest
 }
 
 func (mpi *mempoolImpl) handleReceiveOffLedgerRequest(request isc.OffLedgerRequest) {
+	mpi.log.Debugf("Received request %v from outside.", request.ID())
 	if mpi.addOffLedgerRequestIfUnseen(request) {
 		mpi.sendMessages(mpi.distSync.Input(distSync.NewInputPublishRequest(request)))
 	}
@@ -664,7 +665,6 @@ func (mpi *mempoolImpl) handleTrackNewChainHead(req *reqTrackNewChainHead) {
 		for _, receipt := range blockReceipts {
 			mpi.metrics.IncRequestsProcessed()
 			mpi.tryRemoveRequest(receipt.Request)
-			mpi.log.Debugf("removed from mempool: %s", receipt.Request.ID().String())
 		}
 	}
 	//
@@ -740,8 +740,10 @@ func (mpi *mempoolImpl) tryReAddRequest(req isc.Request) {
 		// For now, the L1 cannot revert committed outputs and all the on-ledger requests
 		// are received, when they are committed. Therefore it is safe now to re-add the
 		// requests, because they were consumed in an uncommitted (and now reverted) transactions.
+		mpi.log.Debugf("re-adding on-ledger request to mempool: %s", req.ID())
 		mpi.onLedgerPool.Add(req)
 	case isc.OffLedgerRequest:
+		mpi.log.Debugf("re-adding off-ledger request to mempool: %s", req.ID())
 		mpi.offLedgerPool.Add(req)
 	default:
 		panic(fmt.Errorf("unexpected request type: %T", req))
@@ -751,8 +753,10 @@ func (mpi *mempoolImpl) tryReAddRequest(req isc.Request) {
 func (mpi *mempoolImpl) tryRemoveRequest(req isc.Request) {
 	switch req := req.(type) {
 	case isc.OnLedgerRequest:
+		mpi.log.Debugf("removing on-ledger request from mempool: %s", req.ID())
 		mpi.onLedgerPool.Remove(req)
 	case isc.OffLedgerRequest:
+		mpi.log.Debugf("removing off-ledger request from mempool: %s", req.ID())
 		mpi.offLedgerPool.Remove(req)
 	default:
 		mpi.log.Warn("Trying to remove request of unexpected type %T: %+v", req, req)
