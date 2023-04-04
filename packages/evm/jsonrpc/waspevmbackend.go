@@ -4,6 +4,7 @@
 package jsonrpc
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 	"sync"
@@ -85,6 +86,12 @@ func (b *WaspEVMBackend) EVMSendTransaction(tx *types.Transaction) error {
 	txHash := tx.Hash()
 	b.requestIDs.Store(txHash, req.ID())
 	go b.evictWhenExpired(txHash)
+
+	// Await for the request for some time.
+	// This makes the call partially synchronous.
+	awaitCtx, awaitCtxCancel := context.WithTimeout(context.Background(), 7*time.Second)
+	b.chain.AwaitRequestProcessed(awaitCtx, req.ID(), false)
+	awaitCtxCancel()
 
 	return nil
 }
