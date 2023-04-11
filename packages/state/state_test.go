@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"pgregory.net/rapid"
 
 	"github.com/iotaledger/hive.go/kvstore"
 	"github.com/iotaledger/hive.go/kvstore/mapdb"
@@ -24,19 +25,30 @@ type mustChainStore struct {
 }
 
 func (m mustChainStore) BlockByIndex(i uint32) state.Block {
-	r, err := m.Store.BlockByIndex(i)
+	latest, err := m.Store.LatestBlock()
 	if err != nil {
 		panic(err)
 	}
-	return r
+	if i > latest.StateIndex() {
+		panic(fmt.Sprintf("invalid index %d (latest is %d)", i, latest.StateIndex()))
+	}
+	block := latest
+	for block.StateIndex() > i {
+		block, err = m.Store.BlockByTrieRoot(block.PreviousL1Commitment().TrieRoot())
+		if err != nil {
+			panic(err)
+		}
+	}
+	return block
 }
 
 func (m mustChainStore) StateByIndex(i uint32) state.State {
-	r, err := m.Store.StateByIndex(i)
+	block := m.BlockByIndex(i)
+	state, err := m.Store.StateByTrieRoot(block.TrieRoot())
 	if err != nil {
 		panic(err)
 	}
-	return r
+	return state
 }
 
 func (m mustChainStore) LatestState() state.State {
@@ -111,9 +123,24 @@ func TestOriginBlock(t *testing.T) {
 	require.True(t, s.Timestamp().IsZero())
 
 	validateBlock0(state.NewStore(db).BlockByTrieRoot(block0.TrieRoot()))
-	validateBlock0(state.NewStore(db).BlockByIndex(0))
+	validateBlock0(state.NewStore(db).LatestBlock())
 
 	require.EqualValues(t, 0, cs.LatestBlockIndex())
+}
+
+func TestOriginBlockDeterminism(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		deposit := rapid.Uint64().Draw(t, "deposit")
+		db := mapdb.NewMapDB()
+		st := state.NewStore(db)
+		blockA := origin.InitChain(st, nil, deposit)
+		blockB := origin.InitChain(st, nil, deposit)
+		require.Equal(t, blockA.L1Commitment(), blockB.L1Commitment())
+		db2 := mapdb.NewMapDB()
+		st2 := state.NewStore(db2)
+		blockC := origin.InitChain(st2, nil, deposit)
+		require.Equal(t, blockA.L1Commitment(), blockC.L1Commitment())
+	})
 }
 
 func Test1Block(t *testing.T) {

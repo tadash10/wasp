@@ -58,6 +58,7 @@ var sandboxFunctions = []func(*WasmContextSandbox, []byte) []byte{
 	(*WasmContextSandbox).fnUtilsHashBlake2b,
 	(*WasmContextSandbox).fnUtilsHashName,
 	(*WasmContextSandbox).fnUtilsHashSha3,
+	(*WasmContextSandbox).fnUtilsHashKeccak,
 }
 
 // '$' prefix indicates a string param
@@ -104,6 +105,7 @@ var sandboxFuncNames = []string{
 	"#FnUtilsHashBlake2b",
 	"$FnUtilsHashName",
 	"#FnUtilsHashSha3",
+	"#FnUtilsHashKeccak",
 }
 
 // WasmContextSandbox is the host side of the WasmLib Sandbox interface
@@ -163,9 +165,9 @@ func (s *WasmContextSandbox) makeRequest(args []byte) isc.RequestParameters {
 
 	// Force a minimum transfer of WasmStorageDeposit base tokens for storage deposit
 	// excess can always be reclaimed from the chain account by the user
-	if !transfer.IsEmpty() && transfer.BaseTokens < WasmStorageDeposit {
+	if !transfer.IsEmpty() && transfer.BaseTokens < wasmlib.StorageDeposit {
 		transfer = transfer.Clone()
-		transfer.BaseTokens = WasmStorageDeposit
+		transfer.BaseTokens = wasmlib.StorageDeposit
 	}
 
 	s.Tracef("POST %s.%s, chain %s", contract.String(), function.String(), chainID.String())
@@ -462,13 +464,17 @@ func (s WasmContextSandbox) fnUtilsEd25519Valid(args []byte) []byte {
 }
 
 func (s WasmContextSandbox) fnUtilsHashBlake2b(args []byte) []byte {
-	return cvt.ScHash(s.common.Utils().Hashing().Blake2b(args)).Bytes()
+	return s.common.Utils().Hashing().Blake2b(args).Bytes()
+}
+
+func (s WasmContextSandbox) fnUtilsHashKeccak(args []byte) []byte {
+	return s.common.Utils().Hashing().Keccak(args).Bytes()
 }
 
 func (s WasmContextSandbox) fnUtilsHashName(args []byte) []byte {
-	return cvt.ScHname(s.common.Utils().Hashing().Hname(string(args))).Bytes()
+	return s.common.Utils().Hashing().Hname(string(args)).Bytes()
 }
 
 func (s WasmContextSandbox) fnUtilsHashSha3(args []byte) []byte {
-	return cvt.ScHash(s.common.Utils().Hashing().Sha3(args)).Bytes()
+	return s.common.Utils().Hashing().Sha3(args).Bytes()
 }

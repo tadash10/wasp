@@ -25,6 +25,7 @@ import (
 	"github.com/iotaledger/wasp/packages/registry"
 	"github.com/iotaledger/wasp/packages/shutdown"
 	"github.com/iotaledger/wasp/packages/state"
+	"github.com/iotaledger/wasp/packages/state/indexedstore"
 	"github.com/iotaledger/wasp/packages/util"
 	"github.com/iotaledger/wasp/packages/vm/processors"
 )
@@ -47,12 +48,15 @@ type Chains struct {
 	offledgerBroadcastUpToNPeers     int
 	offledgerBroadcastInterval       time.Duration
 	pullMissingRequestsFromCommittee bool
-	networkProvider                  peering.NetworkProvider
-	trustedNetworkManager            peering.TrustedNetworkManager
-	trustedNetworkListenerCancel     context.CancelFunc
-	chainStateStoreProvider          database.ChainStateKVStoreProvider
-	walEnabled                       bool
-	walFolderPath                    string
+	deriveAliasOutputByQuorum        bool
+	pipeliningLimit                  int
+
+	networkProvider              peering.NetworkProvider
+	trustedNetworkManager        peering.TrustedNetworkManager
+	trustedNetworkListenerCancel context.CancelFunc
+	chainStateStoreProvider      database.ChainStateKVStoreProvider
+	walEnabled                   bool
+	walFolderPath                string
 
 	chainRecordRegistryProvider registry.ChainRecordRegistryProvider
 	dkShareRegistryProvider     registry.DKShareRegistryProvider
@@ -82,6 +86,8 @@ func New(
 	offledgerBroadcastUpToNPeers int, // TODO: Unused for now.
 	offledgerBroadcastInterval time.Duration, // TODO: Unused for now.
 	pullMissingRequestsFromCommittee bool, // TODO: Unused for now.
+	deriveAliasOutputByQuorum bool,
+	pipeliningLimit int,
 	networkProvider peering.NetworkProvider,
 	trustedNetworkManager peering.TrustedNetworkManager,
 	chainStateStoreProvider database.ChainStateKVStoreProvider,
@@ -103,6 +109,8 @@ func New(
 		offledgerBroadcastUpToNPeers:     offledgerBroadcastUpToNPeers,
 		offledgerBroadcastInterval:       offledgerBroadcastInterval,
 		pullMissingRequestsFromCommittee: pullMissingRequestsFromCommittee,
+		deriveAliasOutputByQuorum:        deriveAliasOutputByQuorum,
+		pipeliningLimit:                  pipeliningLimit,
 		networkProvider:                  networkProvider,
 		trustedNetworkManager:            trustedNetworkManager,
 		chainStateStoreProvider:          chainStateStoreProvider,
@@ -243,7 +251,7 @@ func (c *Chains) activateWithoutLocking(chainID isc.ChainID) error {
 		chainCtx,
 		chainLog,
 		chainID,
-		state.NewStore(chainKVStore),
+		indexedstore.New(state.NewStore(chainKVStore)),
 		c.nodeConnection,
 		c.nodeIdentityProvider.NodeIdentity(),
 		c.processorConfig,
@@ -257,6 +265,8 @@ func (c *Chains) activateWithoutLocking(chainID isc.ChainID) error {
 		c.shutdownCoordinator.Nested(fmt.Sprintf("Chain-%s", chainID.AsAddress().String())),
 		func() { c.chainMetricsProvider.RegisterChain(chainID) },
 		func() { c.chainMetricsProvider.UnregisterChain(chainID) },
+		c.deriveAliasOutputByQuorum,
+		c.pipeliningLimit,
 	)
 	if err != nil {
 		chainCancel()

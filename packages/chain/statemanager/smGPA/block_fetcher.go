@@ -1,10 +1,13 @@
 package smGPA
 
 import (
+	"time"
+
 	"github.com/iotaledger/wasp/packages/state"
 )
 
 type blockFetcherImpl struct {
+	start      time.Time
 	commitment *state.L1Commitment
 	callbacks  []blockRequestCallback
 	related    []blockFetcher
@@ -14,6 +17,7 @@ var _ blockFetcher = &blockFetcherImpl{}
 
 func newBlockFetcher(commitment *state.L1Commitment) blockFetcher {
 	return &blockFetcherImpl{
+		start:      time.Now(),
 		commitment: commitment,
 		callbacks:  make([]blockRequestCallback, 0),
 		related:    make([]blockFetcher, 0),
@@ -44,27 +48,17 @@ func (bfiT *blockFetcherImpl) addRelatedFetcher(fetcher blockFetcher) {
 	bfiT.related = append(bfiT.related, fetcher)
 }
 
-func (bfiT *blockFetcherImpl) notifyFetched(notifyFun func(blockFetcher) (bool, error)) error {
-	result, err := notifyFun(bfiT)
-	if err != nil {
-		return err
-	}
-	if result {
+func (bfiT *blockFetcherImpl) notifyFetched(notifyFun func(blockFetcher) bool) {
+	if notifyFun(bfiT) {
 		for _, callback := range bfiT.callbacks {
 			if callback.isValid() {
 				callback.requestCompleted()
 			}
 		}
-		err = nil
 		for _, fetcher := range bfiT.related {
-			e := fetcher.notifyFetched(notifyFun)
-			if e != nil {
-				err = e
-			}
+			fetcher.notifyFetched(notifyFun)
 		}
-		return err
 	}
-	return nil
 }
 
 func (bfiT *blockFetcherImpl) cleanCallbacks() {

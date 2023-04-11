@@ -9,6 +9,9 @@ import (
 )
 
 const (
+	MinGasFee      = uint64(100)
+	StorageDeposit = uint64(20_000)
+
 	FnAccountID              = int32(-1)
 	FnAllowance              = int32(-2)
 	FnBalance                = int32(-3)
@@ -47,6 +50,7 @@ const (
 	FnUtilsHashBlake2b       = int32(-36)
 	FnUtilsHashName          = int32(-37)
 	FnUtilsHashSha3          = int32(-38)
+	FnUtilsHashKeccak        = int32(-39)
 )
 
 type ScSandbox struct{}

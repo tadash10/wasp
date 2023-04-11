@@ -5,6 +5,7 @@ package chain
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/iotaledger/hive.go/logger"
@@ -13,6 +14,7 @@ import (
 	"github.com/iotaledger/wasp/packages/parameters"
 	"github.com/iotaledger/wasp/packages/peering"
 	"github.com/iotaledger/wasp/packages/state"
+	"github.com/iotaledger/wasp/packages/state/indexedstore"
 	"github.com/iotaledger/wasp/packages/vm/core/governance"
 	"github.com/iotaledger/wasp/packages/vm/processors"
 )
@@ -34,6 +36,19 @@ const (
 	ConfirmedState                               // The state confirmed on L1.
 )
 
+func (sf StateFreshness) String() string {
+	switch sf {
+	case ActiveOrCommittedState:
+		return "ActiveOrCommittedState"
+	case ActiveState:
+		return "ActiveState"
+	case ConfirmedState:
+		return "ConfirmedState"
+	default:
+		return fmt.Sprintf("StateFreshness=%v", int(sf))
+	}
+}
+
 type ChainCore interface {
 	ID() isc.ChainID
 	// Returns the current latest confirmed alias output and the active one.
@@ -43,7 +58,7 @@ type ChainCore interface {
 	LatestAliasOutput(freshness StateFreshness) (*isc.AliasOutputWithID, error)
 	LatestState(freshness StateFreshness) (state.State, error)
 	GetCommitteeInfo() *CommitteeInfo // TODO: Review, maybe we can reorganize the CommitteeInfo structure.
-	Store() state.Store               // Use LatestState whenever possible. That will work faster.
+	Store() indexedstore.IndexedStore // Use LatestState whenever possible. That will work faster.
 	Processors() *processors.Cache
 	GetChainNodes() []peering.PeerStatusProvider     // CommitteeNodes + AccessNodes
 	GetCandidateNodes() []*governance.AccessNodeInfo // All the current candidates.

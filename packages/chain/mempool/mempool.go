@@ -201,8 +201,8 @@ func New(
 		chainID:                        chainID,
 		tangleTime:                     time.Time{},
 		timePool:                       NewTimePool(metrics.SetTimePoolSize, log.Named("TIM")),
-		onLedgerPool:                   NewTypedPool[isc.OnLedgerRequest](waitReq, metrics.SetOnLedgerPoolSize, log.Named("ONL")),
-		offLedgerPool:                  NewTypedPool[isc.OffLedgerRequest](waitReq, metrics.SetOffLedgerPoolSize, log.Named("OFF")),
+		onLedgerPool:                   NewTypedPool[isc.OnLedgerRequest](waitReq, metrics.SetOnLedgerPoolSize, metrics.SetOnLedgerReqTime, log.Named("ONL")),
+		offLedgerPool:                  NewTypedPool[isc.OffLedgerRequest](waitReq, metrics.SetOffLedgerPoolSize, metrics.SetOffLedgerReqTime, log.Named("OFF")),
 		chainHeadAO:                    nil,
 		serverNodesUpdatedPipe:         pipe.NewInfinitePipe[*reqServerNodesUpdated](),
 		serverNodes:                    []*cryptolib.PublicKey{},
@@ -230,6 +230,7 @@ func New(
 		mpi.distSyncRequestNeededCB,
 		mpi.distSyncRequestReceivedCB,
 		distShareMaxMsgsPerTick,
+		mpi.metrics.SetMissingReqs,
 		log,
 	)
 	netRecvPipeInCh := mpi.netRecvPipe.In()

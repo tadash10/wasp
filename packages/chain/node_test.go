@@ -29,6 +29,7 @@ import (
 	"github.com/iotaledger/wasp/packages/registry"
 	"github.com/iotaledger/wasp/packages/shutdown"
 	"github.com/iotaledger/wasp/packages/state"
+	"github.com/iotaledger/wasp/packages/state/indexedstore"
 	"github.com/iotaledger/wasp/packages/testutil"
 	testparameters "github.com/iotaledger/wasp/packages/testutil/parameters"
 	"github.com/iotaledger/wasp/packages/testutil/testchain"
@@ -47,7 +48,6 @@ type tc struct {
 }
 
 func TestNodeBasic(t *testing.T) {
-	t.SkipNow() // TODO: Disable pipelining temporary.
 	t.Parallel()
 	tests := []tc{
 		{n: 1, f: 0, reliable: true, timeout: 10 * time.Second},   // Low N
@@ -442,7 +442,7 @@ func newEnv(t *testing.T, n, f int, reliable bool) *testEnv {
 			te.ctx,
 			log,
 			te.chainID,
-			state.NewStore(mapdb.NewMapDB()),
+			indexedstore.NewFake(state.NewStore(mapdb.NewMapDB())),
 			te.nodeConns[i],
 			te.peerIdentities[i],
 			coreprocessors.NewConfigWithCoreContracts().WithNativeContracts(inccounter.Processor),
@@ -456,6 +456,8 @@ func newEnv(t *testing.T, n, f int, reliable bool) *testEnv {
 			shutdown.NewCoordinator("test", log),
 			nil,
 			nil,
+			true,
+			-1,
 		)
 		require.NoError(t, err)
 		te.nodes[i].ServersUpdated(te.peerPubKeys)

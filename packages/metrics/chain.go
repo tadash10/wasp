@@ -33,6 +33,7 @@ type IChainMetrics interface {
 	IChainMempoolMetrics
 	IChainMessageMetrics
 	IChainStateMetrics
+	IChainStateManagerMetrics
 }
 
 var (
@@ -95,15 +96,17 @@ type emptyChainMetrics struct {
 	IChainMempoolMetrics
 	IChainMessageMetrics
 	IChainStateMetrics
+	IChainStateManagerMetrics
 }
 
 func NewEmptyChainMetrics() IChainMetrics {
 	return &emptyChainMetrics{
-		IChainBlockWALMetrics:  NewEmptyChainBlockWALMetrics(),
-		IChainConsensusMetrics: NewEmptyChainConsensusMetric(),
-		IChainMempoolMetrics:   NewEmptyChainMempoolMetric(),
-		IChainMessageMetrics:   NewEmptyChainMessageMetrics(),
-		IChainStateMetrics:     NewEmptyChainStateMetric(),
+		IChainBlockWALMetrics:     NewEmptyChainBlockWALMetrics(),
+		IChainConsensusMetrics:    NewEmptyChainConsensusMetric(),
+		IChainMempoolMetrics:      NewEmptyChainMempoolMetric(),
+		IChainMessageMetrics:      NewEmptyChainMessageMetrics(),
+		IChainStateMetrics:        NewEmptyChainStateMetric(),
+		IChainStateManagerMetrics: NewEmptyChainStateManagerMetric(),
 	}
 }
 
@@ -113,28 +116,32 @@ type chainMetrics struct {
 	*chainMempoolMetric
 	*chainMessageMetrics
 	*chainStateMetric
+	*chainStateManagerMetric
 }
 
 func newChainMetrics(provider *ChainMetricsProvider, chainID isc.ChainID) *chainMetrics {
 	return &chainMetrics{
-		chainBlockWALMetrics: newChainBlockWALMetrics(provider, chainID),
-		chainConsensusMetric: newChainConsensusMetric(provider, chainID),
-		chainMempoolMetric:   newChainMempoolMetric(provider, chainID),
-		chainMessageMetrics:  newChainMessageMetrics(provider, chainID),
-		chainStateMetric:     newChainStateMetric(provider, chainID),
+		chainBlockWALMetrics:    newChainBlockWALMetrics(provider, chainID),
+		chainConsensusMetric:    newChainConsensusMetric(provider, chainID),
+		chainMempoolMetric:      newChainMempoolMetric(provider, chainID),
+		chainMessageMetrics:     newChainMessageMetrics(provider, chainID),
+		chainStateMetric:        newChainStateMetric(provider, chainID),
+		chainStateManagerMetric: newChainStateManagerMetric(provider, chainID),
 	}
 }
 
 // ChainMetricsProvider holds all metrics for all chains per chain
 type ChainMetricsProvider struct {
 	// blockWAL
-	blockWALFailedWrites *prometheus.CounterVec
-	blockWALFailedReads  *prometheus.CounterVec
-	blockWALSegments     *prometheus.CounterVec
+	blockWALFailedWrites  *prometheus.CounterVec
+	blockWALFailedReads   *prometheus.CounterVec
+	blockWALBlocksAdded   *prometheus.CounterVec
+	blockWALMaxBlockIndex *prometheus.CounterVec
 
 	// consensus
-	vmRunTime   *prometheus.GaugeVec
-	vmRunsTotal *prometheus.CounterVec
+	consensusVMRunTime       *prometheus.HistogramVec
+	consensusVMRunTimePerReq *prometheus.HistogramVec
+	consensusVMRunReqCount   *prometheus.HistogramVec
 
 	// mempool
 	blocksTotalPerChain       *prometheus.CounterVec // TODO: Outdated and should be removed?
@@ -146,8 +153,11 @@ type ChainMetricsProvider struct {
 
 	mempoolTimePoolSize      *prometheus.GaugeVec
 	mempoolOnLedgerPoolSize  *prometheus.GaugeVec
+	mempoolOnLedgerReqTime   *prometheus.HistogramVec
 	mempoolOffLedgerPoolSize *prometheus.GaugeVec
+	mempoolOffLedgerReqTime  *prometheus.HistogramVec
 	mempoolTotalSize         *prometheus.GaugeVec
+	mempoolMissingReqs       *prometheus.GaugeVec
 
 	// messages
 	chainsRegistered       []isc.ChainID
@@ -168,14 +178,32 @@ type ChainMetricsProvider struct {
 	outPullTxInclusionStateMetrics         *messageMetric[iotago.TransactionID]
 	outPullOutputByIDMetrics               *messageMetric[iotago.OutputID]
 
-	// state
-	blockSizesPerChain   *prometheus.GaugeVec
-	stateIndexCurrent    *prometheus.GaugeVec
-	stateIndexLatestSeen *prometheus.GaugeVec
+	// chain state / tips
+	chainActiveStateWant    *prometheus.GaugeVec
+	chainActiveStateHave    *prometheus.GaugeVec
+	chainConfirmedStateWant *prometheus.GaugeVec
+	chainConfirmedStateHave *prometheus.GaugeVec
+
+	// state manager
+	smCacheSize           *prometheus.GaugeVec
+	smBlocksFetching      *prometheus.GaugeVec
+	smBlocksPending       *prometheus.GaugeVec
+	smBlocksCommitted     *prometheus.CounterVec
+	smRequestsWaiting     *prometheus.GaugeVec
+	smCSPHandlingDuration *prometheus.HistogramVec
+	smCDSHandlingDuration *prometheus.HistogramVec
+	smCBPHandlingDuration *prometheus.HistogramVec
+	smFSDHandlingDuration *prometheus.HistogramVec
+	smTTHandlingDuration  *prometheus.HistogramVec
+	smBlockFetchDuration  *prometheus.HistogramVec
 }
 
 //nolint:funlen
 func NewChainMetricsProvider() *ChainMetricsProvider {
+	execTimeBuckets := prometheus.ExponentialBucketsRange(10, 100_000, 16)
+	reqTimeBuckets := prometheus.ExponentialBucketsRange(10, 1_000_000, 16)
+	recCountBuckets := prometheus.ExponentialBucketsRange(1, 1000, 16)
+
 	m := &ChainMetricsProvider{
 		//
 		// blockWAL
@@ -192,28 +220,42 @@ func NewChainMetricsProvider() *ChainMetricsProvider {
 			Name:      "failed_reads_total",
 			Help:      "Total number of reads failed while replaying WAL",
 		}, []string{labelNameChain}),
-		blockWALSegments: prometheus.NewCounterVec(prometheus.CounterOpts{
+		blockWALBlocksAdded: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: "iota_wasp",
 			Subsystem: "wal",
-			Name:      "segment_files_total",
-			Help:      "Total number of segment files",
+			Name:      "blocks_added",
+			Help:      "Total number of blocks added into WAL",
+		}, []string{labelNameChain}),
+		blockWALMaxBlockIndex: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace: "iota_wasp",
+			Subsystem: "wal",
+			Name:      "max_block_index",
+			Help:      "Largest index of block added into WAL",
 		}, []string{labelNameChain}),
 
 		//
 		// consensus
 		//
-		vmRunTime: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		consensusVMRunTime: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Namespace: "iota_wasp",
-			Subsystem: "vm",
-			Name:      "run_time",
-			Help:      "Time it takes to run the vm per chain",
+			Subsystem: "consensus",
+			Name:      "vm_run_time",
+			Help:      "Time (ms) it takes to run the VM per chain block.",
+			Buckets:   execTimeBuckets,
 		}, []string{labelNameChain}),
-
-		vmRunsTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
+		consensusVMRunTimePerReq: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Namespace: "iota_wasp",
-			Subsystem: "vm",
-			Name:      "runs_total",
-			Help:      "Number of vm runs per chain",
+			Subsystem: "consensus",
+			Name:      "vm_run_time_per_req",
+			Help:      "Time (ms) it takes to run the VM per request.",
+			Buckets:   execTimeBuckets,
+		}, []string{labelNameChain}),
+		consensusVMRunReqCount: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+			Namespace: "iota_wasp",
+			Subsystem: "consensus",
+			Name:      "vm_run_req_count",
+			Help:      "Number of requests processed per VM run.",
+			Buckets:   recCountBuckets,
 		}, []string{labelNameChain}),
 
 		//
@@ -273,17 +315,37 @@ func NewChainMetricsProvider() *ChainMetricsProvider {
 			Name:      "on_ledger_pool_size",
 			Help:      "Number of On Ledger requests in mempool.",
 		}, []string{labelNameChain}),
+		mempoolOnLedgerReqTime: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+			Namespace: "iota_wasp",
+			Subsystem: "mempool",
+			Name:      "on_ledger_req_time",
+			Help:      "Time (ms) an on-ledger request stayed in the mempool before removing it.",
+			Buckets:   execTimeBuckets,
+		}, []string{labelNameChain}),
 		mempoolOffLedgerPoolSize: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: "iota_wasp",
 			Subsystem: "mempool",
 			Name:      "off_ledger_pool_size",
 			Help:      "Number of Off Ledger requests in mempool.",
 		}, []string{labelNameChain}),
+		mempoolOffLedgerReqTime: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+			Namespace: "iota_wasp",
+			Subsystem: "mempool",
+			Name:      "off_ledger_req_time",
+			Help:      "Time (ms) an off-ledger request stayed in the mempool before removing it.",
+			Buckets:   execTimeBuckets,
+		}, []string{labelNameChain}),
 		mempoolTotalSize: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: "iota_wasp",
 			Subsystem: "mempool",
 			Name:      "total_pool_size",
 			Help:      "Total requests in mempool.",
+		}, []string{labelNameChain}),
+		mempoolMissingReqs: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: "iota_wasp",
+			Subsystem: "mempool",
+			Name:      "missing_reqs",
+			Help:      "Number of requests missing at this node (asking others to send them).",
 		}, []string{labelNameChain}),
 
 		//
@@ -320,27 +382,107 @@ func NewChainMetricsProvider() *ChainMetricsProvider {
 		}, []string{labelNameChain, labelNameMessageType}),
 
 		//
-		// state
+		// chain state / tips.
 		//
-		blockSizesPerChain: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		chainActiveStateWant: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: "iota_wasp",
-			Subsystem: "blocks",
-			Name:      "sizes",
-			Help:      "Block sizes per chain",
+			Subsystem: "chain",
+			Name:      "active_state_want",
+			Help:      "We try to get blocks till this StateIndex for the active state.",
+		}, []string{labelNameChain}),
+		chainActiveStateHave: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: "iota_wasp",
+			Subsystem: "chain",
+			Name:      "active_state_have",
+			Help:      "We received blocks till this StateIndex for the active state.",
+		}, []string{labelNameChain}),
+		chainConfirmedStateWant: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: "iota_wasp",
+			Subsystem: "chain",
+			Name:      "confirmed_state_want",
+			Help:      "We try to get blocks till this StateIndex for the confirmed state.",
+		}, []string{labelNameChain}),
+		chainConfirmedStateHave: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: "iota_wasp",
+			Subsystem: "chain",
+			Name:      "confirmed_state_have",
+			Help:      "We received blocks till this StateIndex for the confirmed state.",
 		}, []string{labelNameChain}),
 
-		stateIndexCurrent: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		//
+		// state manager
+		//
+		smCacheSize: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: "iota_wasp",
-			Subsystem: "state",
-			Name:      "index_current",
-			Help:      "The current state index per chain",
+			Subsystem: "state_manager",
+			Name:      "cache_size",
+			Help:      "Number of blocks stored in cache",
 		}, []string{labelNameChain}),
-
-		stateIndexLatestSeen: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		smBlocksFetching: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: "iota_wasp",
-			Subsystem: "state",
-			Name:      "index_latest_seen",
-			Help:      "Latest seen state index per chain",
+			Subsystem: "state_manager",
+			Name:      "blocks_fetching",
+			Help:      "Number of blocks the node is waiting from other nodes",
+		}, []string{labelNameChain}),
+		smBlocksPending: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: "iota_wasp",
+			Subsystem: "state_manager",
+			Name:      "blocks_pending",
+			Help:      "Number of blocks the node has fetched but hasn't committed, because the node doesn't have their ancestors",
+		}, []string{labelNameChain}),
+		smBlocksCommitted: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace: "iota_wasp",
+			Subsystem: "state_manager",
+			Name:      "blocks_committed",
+			Help:      "Number of blocks the node has committed to the store",
+		}, []string{labelNameChain}),
+		smRequestsWaiting: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: "iota_wasp",
+			Subsystem: "state_manager",
+			Name:      "requests_waiting",
+			Help:      "Number of requests from other components of the node waiting for response from the state manager",
+		}, []string{labelNameChain}),
+		smCSPHandlingDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+			Namespace: "iota_wasp",
+			Subsystem: "state_manager",
+			Name:      "consensus_state_proposal_duration",
+			Help:      "The duration from starting handling ConsensusStateProposal request till responding to the consensus",
+			Buckets:   reqTimeBuckets,
+		}, []string{labelNameChain}),
+		smCDSHandlingDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+			Namespace: "iota_wasp",
+			Subsystem: "state_manager",
+			Name:      "consensus_decided_state_duration",
+			Help:      "The duration from starting handling ConsensusDecidedState request till responding to the consensus",
+			Buckets:   reqTimeBuckets,
+		}, []string{labelNameChain}),
+		smCBPHandlingDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+			Namespace: "iota_wasp",
+			Subsystem: "state_manager",
+			Name:      "consensus_block_produced_duration",
+			Help:      "The duration from starting till finishing handling ConsensusBlockProduced, which includes responding to the consensus",
+			Buckets:   reqTimeBuckets,
+		}, []string{labelNameChain}),
+		smFSDHandlingDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+			Namespace: "iota_wasp",
+			Subsystem: "state_manager",
+			Name:      "chain_fetch_state_diff_duration",
+			Help:      "The duration from starting handling ChainFetchStateDiff request till responding to the chain",
+			Buckets:   reqTimeBuckets,
+		}, []string{labelNameChain}),
+		smTTHandlingDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+			Namespace: "iota_wasp",
+			Subsystem: "state_manager",
+			Name:      "timer_tick_duration",
+			Help:      "The duration from starting till finishing handling StateManagerTimerTick request",
+			Buckets:   reqTimeBuckets,
+		}, []string{labelNameChain}),
+		smBlockFetchDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+			Namespace: "iota_wasp",
+			Subsystem: "state_manager",
+			Name:      "block_fetch_duration",
+			Help:      "The duration from starting fetching block from other till it is received in this node",
+			Buckets:   reqTimeBuckets,
 		}, []string{labelNameChain}),
 	}
 
@@ -367,14 +509,16 @@ func (m *ChainMetricsProvider) PrometheusCollectorsBlockWAL() []prometheus.Colle
 	return []prometheus.Collector{
 		m.blockWALFailedWrites,
 		m.blockWALFailedReads,
-		m.blockWALSegments,
+		m.blockWALBlocksAdded,
+		m.blockWALMaxBlockIndex,
 	}
 }
 
 func (m *ChainMetricsProvider) PrometheusCollectorsConsensus() []prometheus.Collector {
 	return []prometheus.Collector{
-		m.vmRunTime,
-		m.vmRunsTotal,
+		m.consensusVMRunTime,
+		m.consensusVMRunTimePerReq,
+		m.consensusVMRunReqCount,
 	}
 }
 
@@ -388,8 +532,11 @@ func (m *ChainMetricsProvider) PrometheusCollectorsMempool() []prometheus.Collec
 		m.requestsProcessingTime,
 		m.mempoolTimePoolSize,
 		m.mempoolOnLedgerPoolSize,
+		m.mempoolOnLedgerReqTime,
 		m.mempoolOffLedgerPoolSize,
+		m.mempoolOffLedgerReqTime,
 		m.mempoolTotalSize,
+		m.mempoolMissingReqs,
 	}
 }
 
@@ -404,9 +551,26 @@ func (m *ChainMetricsProvider) PrometheusCollectorsChainMessages() []prometheus.
 
 func (m *ChainMetricsProvider) PrometheusCollectorsChainState() []prometheus.Collector {
 	return []prometheus.Collector{
-		m.blockSizesPerChain,
-		m.stateIndexCurrent,
-		m.stateIndexLatestSeen,
+		m.chainActiveStateWant,
+		m.chainActiveStateHave,
+		m.chainConfirmedStateWant,
+		m.chainConfirmedStateHave,
+	}
+}
+
+func (m *ChainMetricsProvider) PrometheusCollectorsChainStateManager() []prometheus.Collector {
+	return []prometheus.Collector{
+		m.smCacheSize,
+		m.smBlocksFetching,
+		m.smBlocksPending,
+		m.smBlocksCommitted,
+		m.smRequestsWaiting,
+		m.smCSPHandlingDuration,
+		m.smCDSHandlingDuration,
+		m.smCBPHandlingDuration,
+		m.smFSDHandlingDuration,
+		m.smTTHandlingDuration,
+		m.smBlockFetchDuration,
 	}
 }
 

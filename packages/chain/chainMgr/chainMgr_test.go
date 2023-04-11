@@ -18,6 +18,7 @@ import (
 	"github.com/iotaledger/wasp/packages/isc"
 	"github.com/iotaledger/wasp/packages/origin"
 	"github.com/iotaledger/wasp/packages/state"
+	"github.com/iotaledger/wasp/packages/state/indexedstore"
 	"github.com/iotaledger/wasp/packages/tcrypto"
 	"github.com/iotaledger/wasp/packages/testutil"
 	"github.com/iotaledger/wasp/packages/testutil/testchain"
@@ -80,15 +81,24 @@ func testChainMgrBasic(t *testing.T, n, f int) {
 	for i, nid := range nodeIDs {
 		consensusStateRegistry := testutil.NewConsensusStateRegistry()
 		stores[nid] = state.NewStore(mapdb.NewMapDB())
-		origin.InitChainByAliasOutput(stores[nid], originAO)
+		_, err := origin.InitChainByAliasOutput(stores[nid], originAO)
+		require.NoError(t, err)
 		activeAccessNodesCB := func() ([]*cryptolib.PublicKey, []*cryptolib.PublicKey) {
 			return []*cryptolib.PublicKey{}, []*cryptolib.PublicKey{}
 		}
-		trackActiveStateCB := func(ao *isc.AliasOutputWithID) {}
-		updateCommitteeNodesCB := func(tcrypto.DKShare) {}
+		trackActiveStateCB := func(ao *isc.AliasOutputWithID) {
+			// Nothing
+		}
+		savePreliminaryBlockCB := func(state.Block) {
+			// Nothing
+		}
+		updateCommitteeNodesCB := func(tcrypto.DKShare) {
+			// Nothing
+		}
 		cm, err := chainMgr.New(
 			nid, chainID, stores[nid], consensusStateRegistry, dkRegs[i], gpa.NodeIDFromPublicKey,
-			activeAccessNodesCB, trackActiveStateCB, updateCommitteeNodesCB, log.Named(nid.ShortString()),
+			activeAccessNodesCB, trackActiveStateCB, savePreliminaryBlockCB, updateCommitteeNodesCB, true, -1,
+			log.Named(nid.ShortString()),
 		)
 		require.NoError(t, err)
 		nodes[nid] = cm.AsGPA()
@@ -117,7 +127,7 @@ func testChainMgrBasic(t *testing.T, n, f int) {
 	step2AO, step2TX := tcl.FakeTX(originAO, cmtAddrA)
 	for nid := range nodes {
 		consReq := nodes[nid].Output().(*chainMgr.Output).NeedConsensus()
-		fake2ST := state.NewStore(mapdb.NewMapDB())
+		fake2ST := indexedstore.NewFake(state.NewStore(mapdb.NewMapDB()))
 		origin.InitChain(fake2ST, nil, 0)
 		block0, err := fake2ST.BlockByIndex(0)
 		require.NoError(t, err)

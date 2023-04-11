@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 
 	iotago "github.com/iotaledger/iota.go/v3"
@@ -257,7 +258,7 @@ func TestTakeAllowance(t *testing.T) {
 	require.NoError(t, ctx.Err)
 
 	bal.Account += tokensToSend
-	bal.Chain += ctx.GasFee
+	bal.Common += ctx.GasFee
 	bal.Originator -= ctx.GasFee
 	bal.VerifyBalances(t)
 
@@ -266,7 +267,7 @@ func TestTakeAllowance(t *testing.T) {
 	require.NoError(t, ctx.Err)
 	require.EqualValues(t, bal.Account, g.Results.Tokens().Value())
 
-	bal.Chain += ctx.GasFee
+	bal.Common += ctx.GasFee
 	bal.Originator += ctx.StorageDeposit - ctx.GasFee
 	bal.VerifyBalances(t)
 
@@ -292,7 +293,7 @@ func TestTakeNoAllowance(t *testing.T) {
 	require.NoError(t, ctx.Err)
 	ctx.Balances()
 
-	bal.Chain += ctx.GasFee
+	bal.Common += ctx.GasFee
 	bal.Originator += tokensToSend - ctx.GasFee
 	bal.VerifyBalances(t)
 
@@ -301,7 +302,7 @@ func TestTakeNoAllowance(t *testing.T) {
 	require.NoError(t, ctx.Err)
 	require.EqualValues(t, bal.Account, g.Results.Tokens().Value())
 
-	bal.Chain += ctx.GasFee
+	bal.Common += ctx.GasFee
 	bal.Originator += ctx.StorageDeposit - ctx.GasFee
 	bal.VerifyBalances(t)
 
@@ -407,10 +408,15 @@ func TestWasmTypes(t *testing.T) {
 	agentID = &isc.NilAgentID{}
 	checkAgentID(t, ctx, scAgentID, agentID)
 
-	// eth
-	addressEth := "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
+	// eth address and agentID
+	ethString := "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
+	ethAddress := common.BytesToAddress(wasmtypes.HexDecode(ethString))
+	ethAgentID := isc.NewEthereumAddressAgentID(ethAddress)
 	checkerEth := testwasmlib.ScFuncs.CheckEthAddressAndAgentID(ctx)
-	checkerEth.Params.EthAddress().SetValue(addressEth)
+	checkerEth.Params.EthAddress().SetValue(wasmtypes.AddressFromBytes(ethAddress.Bytes()))
+	checkerEth.Params.EthAddressString().SetValue(ethAddress.String())
+	checkerEth.Params.EthAgentID().SetValue(wasmtypes.AgentIDFromBytes(ethAgentID.Bytes()))
+	checkerEth.Params.EthAgentIDString().SetValue(ethAgentID.String())
 	checkerEth.Func.Call()
 	require.NoError(t, ctx.Err)
 

@@ -1,11 +1,12 @@
 import {WasmClientContext, WasmClientService} from '../lib';
 import * as testwasmlib from 'testwasmlib';
 import {
+    addressFromBytes,
     bytesFromString,
     bytesToString,
     chainIDFromBytes,
     chainIDToBytes,
-    chainIDToString,
+    chainIDToString, hexDecode,
     requestIDFromBytes
 } from 'wasmlib';
 import {KeyPair} from '../lib/isc';
@@ -121,6 +122,17 @@ describe('keypair tests', function () {
         console.log('Sign: ' + bytesToString(signedSeed));
         expect(bytesToString(signedSeed) == '0xa9571cc0c8612a63feaa325372a33c2f4ff6c414def18eb85ce4afe9b7cf01b84dba089278ca992e76fad8a50a76e3bf157216c445a404dc9e0424c250640906').toBeTruthy();
         expect(pair.verify(mySeed, signedSeed)).toBeTruthy();
+    });
+});
+
+describe('ETH address strings', function () {
+    it('should be proper ETH address string', () => {
+        const svc = new WasmClientService(WASPAPI);
+        svc.setCurrentChainID('atoi1ppp52dzsr6m2tle27v87e409n36xfcva3uld6lm093f0jgz2xng82pmf3yl');
+        const strAddress = '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c';
+        const address = addressFromBytes(hexDecode(strAddress));
+        const ethAddress = address.toString();
+        expect(strAddress == ethAddress).toBeTruthy();
     });
 });
 

@@ -43,6 +43,7 @@ import (
 	"github.com/iotaledger/wasp/packages/registry"
 	"github.com/iotaledger/wasp/packages/shutdown"
 	"github.com/iotaledger/wasp/packages/state"
+	"github.com/iotaledger/wasp/packages/state/indexedstore"
 	"github.com/iotaledger/wasp/packages/tcrypto"
 	"github.com/iotaledger/wasp/packages/transaction"
 	"github.com/iotaledger/wasp/packages/util"
@@ -143,7 +144,7 @@ type chainNodeImpl struct {
 	nodeIdentity        *cryptolib.KeyPair
 	chainID             isc.ChainID
 	chainMgr            gpa.AckHandler
-	chainStore          state.Store
+	chainStore          indexedstore.IndexedStore
 	nodeConn            NodeConnection
 	tangleTime          time.Time
 	mempool             mempool.Mempool
@@ -250,7 +251,7 @@ func New(
 	ctx context.Context,
 	log *logger.Logger,
 	chainID isc.ChainID,
-	chainStore state.Store,
+	chainStore indexedstore.IndexedStore,
 	nodeConn NodeConnection,
 	nodeIdentity *cryptolib.KeyPair,
 	processorConfig *processors.Config,
@@ -264,6 +265,8 @@ func New(
 	shutdownCoordinator *shutdown.Coordinator,
 	onChainConnect func(),
 	onChainDisconnect func(),
+	deriveAliasOutputByQuorum bool,
+	pipeliningLimit int,
 ) (Chain, error) {
 	log.Debugf("Starting the chain, chainID=%v", chainID)
 	if listener == nil {
@@ -336,6 +339,11 @@ func New(
 		func(ao *isc.AliasOutputWithID) {
 			cni.stateTrackerAct.TrackAliasOutput(ao, true)
 		},
+		func(block state.Block) {
+			if err := cni.stateMgr.PreliminaryBlock(block); err != nil {
+				cni.log.Warnf("Failed to save a preliminary block %v: %v", block.L1Commitment(), err)
+			}
+		},
 		func(dkShare tcrypto.DKShare) {
 			cni.accessLock.Lock()
 			cni.activeCommitteeDKShare = dkShare
@@ -354,6 +362,8 @@ func New(
 				})
 			}
 		},
+		deriveAliasOutputByQuorum,
+		pipeliningLimit,
 		cni.log.Named("CM"),
 	)
 	if err != nil {
@@ -371,6 +381,7 @@ func New(
 		blockWAL,
 		chainStore,
 		shutdownCoordinator.Nested("StateMgr"),
+		chainMetrics,
 		cni.log.Named("SM"),
 	)
 	if err != nil {
@@ -388,8 +399,8 @@ func New(
 	cni.chainMgr = gpa.NewAckHandler(cni.me, chainMgr.AsGPA(), redeliveryPeriod)
 	cni.stateMgr = stateMgr
 	cni.mempool = mempool
-	cni.stateTrackerAct = NewStateTracker(ctx, stateMgr, cni.handleStateTrackerActCB, cni.log.Named("ST.ACT"))
-	cni.stateTrackerCnf = NewStateTracker(ctx, stateMgr, cni.handleStateTrackerCnfCB, cni.log.Named("ST.CNF"))
+	cni.stateTrackerAct = NewStateTracker(ctx, stateMgr, cni.handleStateTrackerActCB, chainMetrics.SetChainActiveStateWant, chainMetrics.SetChainActiveStateHave, cni.log.Named("ST.ACT"))
+	cni.stateTrackerCnf = NewStateTracker(ctx, stateMgr, cni.handleStateTrackerCnfCB, chainMetrics.SetChainConfirmedStateWant, chainMetrics.SetChainConfirmedStateHave, cni.log.Named("ST.CNF"))
 	cni.updateAccessNodes(func() {
 		cni.accessNodesFromNode = accessNodesFromNode
 		cni.accessNodesFromACT = []*cryptolib.PublicKey{}
@@ -569,11 +580,21 @@ func (cni *chainNodeImpl) run(ctx context.Context, cleanupFunc context.CancelFun
 // The active state is needed by the mempool to cleanup the processed requests, etc.
 // The request/receipt awaits are already handled in the StateTracker.
 func (cni *chainNodeImpl) handleStateTrackerActCB(st state.State, from, till *isc.AliasOutputWithID, added, removed []state.Block) {
-	cni.log.Debugf("handleStateTrackerActCB")
+	cni.log.Debugf("handleStateTrackerActCB: till %v from %v", till, from)
 	cni.accessLock.Lock()
 	cni.latestActiveState = st
 	cni.latestActiveStateAO = till
+	latestConfirmedAO := cni.latestConfirmedAO
 	cni.accessLock.Unlock()
+
+	// Set the state to match the ActiveOrConfirmed state.
+	if latestConfirmedAO == nil || till.GetStateIndex() > latestConfirmedAO.GetStateIndex() {
+		l1Commitment := transaction.MustL1CommitmentFromAliasOutput(till.GetAliasOutput())
+		if err := cni.chainStore.SetLatest(l1Commitment.TrieRoot()); err != nil {
+			panic(fmt.Errorf("cannot set L1Commitment=%v as latest: %w", l1Commitment, err))
+		}
+		cni.log.Debugf("Latest state set to ACT index=%v, trieRoot=%v", till.GetStateIndex(), l1Commitment.TrieRoot())
+	}
 
 	newAccessNodes := governance.NewStateAccess(st).GetAccessNodes()
 	if !util.Same(newAccessNodes, cni.accessNodesFromACT) {
@@ -591,10 +612,11 @@ func (cni *chainNodeImpl) handleStateTrackerActCB(st state.State, from, till *is
 //
 // The request/receipt awaits are already handled in the StateTracker.
 func (cni *chainNodeImpl) handleStateTrackerCnfCB(st state.State, from, till *isc.AliasOutputWithID, added, removed []state.Block) {
-	cni.log.Debugf("handleStateTrackerCnfCB")
+	cni.log.Debugf("handleStateTrackerCnfCB: till %v from %v", till, from)
 	cni.accessLock.Lock()
 	cni.latestConfirmedState = st
 	cni.latestConfirmedStateAO = till
+	latestActiveStateAO := cni.latestActiveStateAO
 	cni.accessLock.Unlock()
 
 	newAccessNodes := governance.NewStateAccess(st).GetAccessNodes()
@@ -604,14 +626,14 @@ func (cni *chainNodeImpl) handleStateTrackerCnfCB(st state.State, from, till *is
 		})
 	}
 
-	l1Commitment, err := transaction.L1CommitmentFromAliasOutput(till.GetAliasOutput())
-	if err != nil {
-		panic(fmt.Errorf("cannot get L1Commitment from alias output: %w", err))
+	// Set the state to match the ActiveOrConfirmed state.
+	if latestActiveStateAO == nil || latestActiveStateAO.GetStateIndex() <= till.GetStateIndex() {
+		l1Commitment := transaction.MustL1CommitmentFromAliasOutput(till.GetAliasOutput())
+		if err := cni.chainStore.SetLatest(l1Commitment.TrieRoot()); err != nil {
+			panic(fmt.Errorf("cannot set L1Commitment=%v as latest: %w", l1Commitment, err))
+		}
+		cni.log.Debugf("Latest state set to CNF index=%v, trieRoot=%v", till.GetStateIndex(), l1Commitment.TrieRoot())
 	}
-	if err := cni.chainStore.SetLatest(l1Commitment.TrieRoot()); err != nil {
-		panic(fmt.Errorf("cannot set L1Commitment=%v as latest: %w", l1Commitment, err))
-	}
-	cni.log.Debugf("Latest state set to index=%v, trieRoot=%v", till.GetStateIndex(), l1Commitment.TrieRoot())
 }
 
 func (cni *chainNodeImpl) handleAccessNodesConfigUpdated(accessNodesFromNode []*cryptolib.PublicKey) {
@@ -643,7 +665,11 @@ func (cni *chainNodeImpl) handleTxPublished(ctx context.Context, txPubResult *tx
 func (cni *chainNodeImpl) handleAliasOutput(ctx context.Context, aliasOutput *isc.AliasOutputWithID) {
 	cni.log.Debugf("handleAliasOutput: %v", aliasOutput)
 	if aliasOutput.GetStateIndex() == 0 {
-		initBlock := origin.InitChainByAliasOutput(cni.chainStore, aliasOutput)
+		initBlock, err := origin.InitChainByAliasOutput(cni.chainStore, aliasOutput)
+		if err != nil {
+			cni.log.Errorf("Ignoring InitialAO for the chain: %v", err)
+			return
+		}
 		if err := cni.blockWAL.Write(initBlock); err != nil {
 			panic(fmt.Errorf("cannot write initial block to the WAL: %w", err))
 		}
@@ -731,10 +757,10 @@ func (cni *chainNodeImpl) handleChainMgrOutput(ctx context.Context, outputUntype
 	cni.accessLock.Lock()
 	cni.latestConfirmedAO = output.LatestConfirmedAliasOutput()
 	cni.latestActiveAO = output.LatestActiveAliasOutput()
-	if cni.latestActiveAO == nil {
-		cni.latestActiveState = nil
-		cni.latestActiveStateAO = nil
-	}
+	// if cni.latestActiveAO == nil {	// TODO: Check, how is this handled in the case of rejections.
+	// 	cni.latestActiveState = nil
+	// 	cni.latestActiveStateAO = nil
+	// }
 	cni.accessLock.Unlock()
 }
 
@@ -809,6 +835,7 @@ func (cni *chainNodeImpl) ensureConsensusInst(ctx context.Context, needConsensus
 				consGrCtx, cni.chainID, cni.chainStore, dkShare, &logIndexCopy, cni.nodeIdentity,
 				cni.procCache, cni.mempool, cni.stateMgr, cni.net,
 				recoveryTimeout, redeliveryPeriod, printStatusPeriod,
+				cni.chainMetrics,
 				cni.log.Named(fmt.Sprintf("C-%v.LI-%v", committeeAddr.String()[:10], logIndexCopy)),
 			)
 			consensusInstances.Set(addLogIndex, &consensusInst{
@@ -985,7 +1012,7 @@ func (cni *chainNodeImpl) ID() isc.ChainID {
 	return cni.chainID
 }
 
-func (cni *chainNodeImpl) Store() state.Store {
+func (cni *chainNodeImpl) Store() indexedstore.IndexedStore {
 	return cni.chainStore
 }
 
@@ -999,30 +1026,33 @@ func (cni *chainNodeImpl) Log() *logger.Logger {
 
 func (cni *chainNodeImpl) LatestAliasOutput(freshness StateFreshness) (*isc.AliasOutputWithID, error) {
 	cni.accessLock.RLock()
+	latestActiveAO := cni.latestActiveStateAO
 	latestConfirmedAO := cni.latestConfirmedStateAO
-	// latestActiveAO := cni.latestActiveStateAO
 	cni.accessLock.RUnlock()
 	switch freshness {
 	case ActiveOrCommittedState:
-		// if latestActiveAO != nil { // TODO: Temporary.
-		// 	return latestActiveAO, nil
-		// }
+		if latestActiveAO != nil {
+			if latestConfirmedAO == nil || latestActiveAO.GetStateIndex() > latestConfirmedAO.GetStateIndex() {
+				cni.log.Debugf("LatestAliasOutput(%v) => active = %v", freshness, latestActiveAO)
+				return latestActiveAO, nil
+			}
+		}
 		if latestConfirmedAO != nil {
+			cni.log.Debugf("LatestAliasOutput(%v) => confirmed = %v", freshness, latestConfirmedAO)
 			return latestConfirmedAO, nil
 		}
 		return nil, fmt.Errorf("have no active nor confirmed state")
 	case ConfirmedState:
 		if latestConfirmedAO != nil {
+			cni.log.Debugf("LatestAliasOutput(%v) => confirmed = %v", freshness, latestConfirmedAO)
 			return latestConfirmedAO, nil
 		}
 		return nil, fmt.Errorf("have no confirmed state")
 	case ActiveState:
-		if latestConfirmedAO != nil { // TODO: Temporary.
-			return latestConfirmedAO, nil
+		if latestActiveAO != nil {
+			cni.log.Debugf("LatestAliasOutput(%v) => active = %v", freshness, latestActiveAO)
+			return latestActiveAO, nil
 		}
-		// if latestActiveAO != nil { // TODO: Temporary.
-		// 	return latestActiveAO, nil
-		// }
 		return nil, fmt.Errorf("have no active state")
 	default:
 		panic(fmt.Errorf("Unexpected StateFreshness: %v", freshness))
@@ -1031,32 +1061,37 @@ func (cni *chainNodeImpl) LatestAliasOutput(freshness StateFreshness) (*isc.Alia
 
 func (cni *chainNodeImpl) LatestState(freshness StateFreshness) (state.State, error) {
 	cni.accessLock.RLock()
-	// latestActiveState := cni.latestActiveState
+	latestActiveState := cni.latestActiveState
 	latestConfirmedState := cni.latestConfirmedState
 	cni.accessLock.RUnlock()
 	switch freshness {
 	case ActiveOrCommittedState:
-		// if latestActiveState != nil {  // TODO: Temporary.
-		// 	return latestActiveState, nil
-		// }
+		if latestActiveState != nil {
+			if latestConfirmedState == nil || latestActiveState.BlockIndex() > latestConfirmedState.BlockIndex() {
+				cni.log.Debugf("LatestState(%v) => active = %v", freshness, latestActiveState)
+				return latestActiveState, nil
+			}
+		}
 		if latestConfirmedState != nil {
+			cni.log.Debugf("LatestState(%v) => confirmed = %v", freshness, latestConfirmedState)
 			return latestConfirmedState, nil
 		}
-		cni.log.Warn("Have no state, but someone asks for it, will query the state.")
-		return cni.chainStore.LatestState()
+		latestInStore, err := cni.chainStore.LatestState()
+		cni.log.Debugf("LatestState(%v) => inStore = %v, %v", freshness, latestInStore, err)
+		return latestInStore, err
 	case ConfirmedState:
 		if latestConfirmedState != nil {
+			cni.log.Debugf("LatestState(%v) => confirmed = %v", freshness, latestConfirmedState)
 			return latestConfirmedState, nil
 		}
-		cni.log.Warn("Have no state, but someone asks for it, will query the state.")
-		return cni.chainStore.LatestState()
+		latestInStore, err := cni.chainStore.LatestState()
+		cni.log.Debugf("LatestState(%v) => inStore = %v, %v", freshness, latestInStore, err)
+		return latestInStore, err
 	case ActiveState:
-		if latestConfirmedState != nil { // TODO: Temporary.
-			return latestConfirmedState, nil
+		if latestActiveState != nil {
+			cni.log.Debugf("LatestState(%v) => active = %v", freshness, latestActiveState)
+			return latestActiveState, nil
 		}
-		// if latestActiveState != nil { // TODO: Temporary.
-		// 	return latestActiveState, nil
-		// }
 		return nil, fmt.Errorf("chain %v has no active state", cni.chainID)
 	default:
 		panic(fmt.Errorf("Unexpected StateFreshness: %v", freshness))
@@ -1171,7 +1206,7 @@ func (cni *chainNodeImpl) GetConsensusWorkflowStatus() ConsensusWorkflowStatus {
 	return &consensusWorkflowStatusImpl{}
 }
 
-func (cni *chainNodeImpl) tryRecoverStoreFromWAL(chainStore state.Store, chainWAL smGPAUtils.BlockWAL) {
+func (cni *chainNodeImpl) tryRecoverStoreFromWAL(chainStore indexedstore.IndexedStore, chainWAL smGPAUtils.BlockWAL) {
 	defer func() {
 		if r := recover(); r != nil {
 			// Don't fail, if this crashes for some reason, that's an optional step.
