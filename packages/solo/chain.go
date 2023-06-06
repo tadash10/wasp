@@ -152,6 +152,8 @@ func (ch *Chain) SetGasLimits(user *cryptolib.KeyPair, gl *gas.Limits) {
 // data to the chain. It returns hash of the blob, the unique identifier of it.
 // The parameters must be either a dict.Dict, or a sequence of pairs 'fieldName': 'fieldValue'
 // Requires at least 2 x gasFeeEstimate to be on sender's L2 account
+//
+//nolint:nakedret
 func (ch *Chain) UploadBlob(user *cryptolib.KeyPair, params ...interface{}) (ret hashing.HashValue, err error) {
 	if user == nil {
 		user = ch.OriginatorPrivateKey

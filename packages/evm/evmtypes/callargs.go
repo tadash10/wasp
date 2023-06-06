@@ -28,6 +28,7 @@ func EncodeCallMsg(c ethereum.CallMsg) []byte {
 	return m.Bytes()
 }
 
+//nolint:nakedret
 func DecodeCallMsg(callArgsBytes []byte) (ret ethereum.CallMsg, err error) {
 	m := marshalutil.New(callArgsBytes)
 	var b []byte
