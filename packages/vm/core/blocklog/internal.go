@@ -191,23 +191,47 @@ func getSmartContractEventsInternal(partition kv.KVStoreReader, contract isc.Hna
 	}
 }
 
-func pruneEventsByBlockIndex(partition kv.KVStore, blockIndex uint32, totalRequests uint16) {
-	// TODO what about these contract LUTs?
-	// scLut := collections.NewMap(partition, prefixSmartContractEventsLookup)
-	// we need to walk over all possible hContract values
-	// for each do a get of the lut
-	// for each lut scan and skip each block with a value < latestBlockIndex
-	// save the remaining part slice of the lut
+func pruneEventLookupByBlockIndex(partition kv.KVStore, blockIndex uint32) {
+	scLut := collections.NewMap(partition, prefixSmartContractEventsLookup)
 
+	scLut.Iterate(func(lutKey []byte, lutValue []byte) bool {
+		eventKeys := bytes.NewBuffer(lutValue)
+		newEventKeys := make([]byte, 0)
+
+		for {
+			eventKeyLookup, err := EventLookupKeyFromBytes(eventKeys)
+			if err != nil {
+				if errors.Is(err, io.EOF) {
+					break
+				}
+
+				panic(err)
+			}
+
+			if eventKeyLookup.BlockIndex() != blockIndex {
+				eventKeyBytes := eventKeyLookup.Bytes()
+				newEventKeys = append(newEventKeys, eventKeyBytes...)
+			}
+		}
+
+		scLut.SetAt(lutKey, newEventKeys)
+
+		return true
+	})
+}
+
+func pruneEventsByBlockIndex(partition kv.KVStore, blockIndex uint32, totalRequests uint16) {
 	events := collections.NewMap(partition, prefixRequestEvents)
 	for reqIdx := uint16(0); reqIdx < totalRequests; reqIdx++ {
 		eventIndex := uint16(0)
 		for {
 			key := NewEventLookupKey(blockIndex, reqIdx, eventIndex).Bytes()
+
 			eventData := events.GetAt(key)
 			if eventData == nil {
 				break
 			}
+
 			events.DelAt(key)
 			eventIndex++
 		}
@@ -228,6 +252,29 @@ func getRequestLogRecordsForBlockBin(partition kv.KVStoreReader, blockIndex uint
 		}
 	}
 	return ret, true
+}
+
+func pruneRequestLookupByBlockIndex(partition kv.KVStore, blockIndex uint32) {
+	lut := collections.NewMap(partition, prefixRequestLookupIndex)
+
+	lut.Iterate(func(lutKey []byte, lutValue []byte) bool {
+		requestKeys, err := RequestLookupKeyListFromBytes(lutValue)
+		if err != nil {
+			panic(err)
+		}
+
+		filteredRequestKeys := make(RequestLookupKeyList, 0)
+
+		for _, requestKey := range requestKeys {
+			if requestKey.BlockIndex() != blockIndex {
+				filteredRequestKeys = append(filteredRequestKeys, requestKey)
+			}
+		}
+
+		lut.SetAt(lutKey, filteredRequestKeys.Bytes())
+
+		return true
+	})
 }
 
 func pruneRequestLogRecordsByBlockIndex(partition kv.KVStore, blockIndex uint32, totalRequests uint16) {
@@ -282,8 +329,11 @@ func pruneBlock(partition kv.KVStore, blockIndex uint32) {
 	}
 	registry := collections.NewArray(partition, PrefixBlockRegistry)
 	registry.PruneAt(blockIndex)
+
 	pruneRequestLogRecordsByBlockIndex(partition, blockIndex, blockInfo.TotalRequests)
+	pruneRequestLookupByBlockIndex(partition, blockIndex)
 	pruneEventsByBlockIndex(partition, blockIndex, blockInfo.TotalRequests)
+	pruneEventLookupByBlockIndex(partition, blockIndex)
 }
 
 func eventsToDict(events [][]byte) dict.Dict {
