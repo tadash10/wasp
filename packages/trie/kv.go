@@ -1,5 +1,7 @@
 package trie
 
+import "github.com/iotaledger/wasp/packages/cache"
+
 //----------------------------------------------------------------------------
 // generic abstraction interfaces of key/value storage
 
@@ -112,4 +114,38 @@ func makeWriterPartition(w KVWriter, prefix byte) KVWriter {
 		prefix: prefix,
 		w:      w,
 	}
+}
+
+type cachedKVReader struct {
+	r         KVReader
+	partition []byte
+}
+
+func makeCachedKVReader(r KVReader, size int) KVReader {
+	newPartition, err := cache.NewPartition()
+	if err != nil {
+		panic(err)
+	}
+	return &cachedKVReader{
+		r:         r,
+		partition: newPartition,
+	}
+}
+
+func (c *cachedKVReader) Get(key []byte) []byte {
+	if v := cache.Get(c.partition, key); v != nil {
+		return v
+	}
+	v := c.r.Get(key)
+	cache.Set(c.partition, key, v)
+	return v
+}
+
+func (c *cachedKVReader) Has(key []byte) bool {
+	v := cache.Get(c.partition, key)
+	if v == nil {
+		v = c.r.Get(key)
+		cache.Set(c.partition, key, v)
+	}
+	return v != nil
 }
