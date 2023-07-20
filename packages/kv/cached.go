@@ -7,7 +7,7 @@ type cachedKVStoreReader struct {
 	partition []byte
 }
 
-// NewCachedKVStoreReader creates a KVStoreReader with an prefix to a fastcache instance.
+// NewCachedKVStoreReader wraps a KVStoreReader with an prefix to a fastcache instance.
 // IMPORTANT: there is no logic for cache invalidation, so make sure that the
 // underlying KVStoreReader is never mutated.
 func NewCachedKVStoreReader(r KVStoreReader) KVStoreReader {

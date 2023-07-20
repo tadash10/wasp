@@ -13,14 +13,14 @@ import (
 var cache *fastcache.Cache
 
 // only needed or partitionCounter. Fastcache is thread-safe
-var mutex sync.Mutex = sync.Mutex{}
+var mutex = sync.Mutex{}
 
 // partition counter
-var partitionCounter uint32 = 0
+var partitionCounter uint32
 
 func init() {
 	// todo make it parametrizable (probably build a component with params)
-	cache = fastcache.New(32 * 1024 * 1024)
+	cache = fastcache.New(512 * 1024 * 1024)
 }
 
 // get from cache
@@ -49,8 +49,8 @@ func NewPartition() ([]byte, error) {
 	}
 	partitionCounter++
 
-	var partitionBytes []byte
-	binary.LittleEndian.PutUint32(partitionBytes[:], partitionCounter)
+	var partitionBytes = make([]byte, 4)
+	binary.LittleEndian.PutUint32(partitionBytes, partitionCounter)
 
 	return partitionBytes, nil
 }

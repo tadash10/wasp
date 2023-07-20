@@ -121,7 +121,7 @@ type cachedKVReader struct {
 	partition []byte
 }
 
-func makeCachedKVReader(r KVReader, size int) KVReader {
+func makeCachedKVReader(r KVReader) KVReader {
 	newPartition, err := cache.NewPartition()
 	if err != nil {
 		panic(err)
