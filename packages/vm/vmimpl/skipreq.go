@@ -8,6 +8,7 @@ import (
 	iotago "github.com/iotaledger/iota.go/v3"
 	"github.com/iotaledger/wasp/packages/isc"
 	"github.com/iotaledger/wasp/packages/kv"
+	"github.com/iotaledger/wasp/packages/legacymigration"
 	"github.com/iotaledger/wasp/packages/vm/core/accounts"
 	"github.com/iotaledger/wasp/packages/vm/core/blocklog"
 	"github.com/iotaledger/wasp/packages/vm/core/evm"
@@ -63,10 +64,18 @@ func (reqctx *requestContext) checkReasonToSkipOffLedger() error {
 	if reqctx.vm.task.EstimateGasMode {
 		return nil
 	}
+
+	// make an exception for legacy migration requests
+	legacyMigrationSA := legacymigration.NewStateAccess(reqctx.vm.stateDraft)
+	if legacyMigrationSA.ValidMigrationRequest(reqctx.req) {
+		return nil
+	}
+
 	offledgerReq := reqctx.req.(isc.OffLedgerRequest)
 	if err := offledgerReq.VerifySignature(); err != nil {
 		return err
 	}
+
 	senderAccount := offledgerReq.SenderAccount()
 	reqNonce := offledgerReq.Nonce()
 	var nonceErr error
