@@ -1,7 +1,6 @@
 package vmimpl
 
 import (
-	"fmt"
 	"math"
 	"runtime/debug"
 	"time"
@@ -157,14 +156,15 @@ func (reqctx *requestContext) catchRequestPanic(f func()) error {
 	if vmexceptions.IsSkipRequestException(err) {
 		return err
 	}
-	// panic again with more information about the error
-	panic(fmt.Errorf(
+	// HOTFIX: ignore fatal error
+	reqctx.vm.task.Log.Errorf(
 		"panic when running request #%d ID:%s, requestbytes:%s err:%w",
 		reqctx.requestIndex,
 		reqctx.req.ID(),
 		iotago.EncodeHex(reqctx.req.Bytes()),
 		err,
-	))
+	)
+	return err
 }
 
 // checkAllowance ensure there are enough funds to cover the specified allowance
