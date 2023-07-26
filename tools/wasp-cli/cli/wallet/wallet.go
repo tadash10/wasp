@@ -77,19 +77,23 @@ func getIotaSDK() *wasp_wallet_sdk.IOTASDK {
 	return sdk
 }
 
+var loadedWallet wallets.Wallet
+
 func Load() wallets.Wallet {
 	walletScheme := GetWalletScheme()
 
-	switch walletScheme {
-	case SchemeKeyChain:
-		return providers.LoadKeyChain(AddressIndex)
-	case SchemeLedger:
-		return providers.LoadLedgerWallet(getIotaSDK(), AddressIndex)
-	case SchemeStronghold:
-		return providers.LoadStrongholdWallet(getIotaSDK(), AddressIndex)
+	if loadedWallet == nil {
+		switch walletScheme {
+		case SchemeKeyChain:
+			loadedWallet = providers.LoadKeyChain(AddressIndex)
+		case SchemeLedger:
+			loadedWallet = providers.LoadLedgerWallet(getIotaSDK(), AddressIndex)
+		case SchemeStronghold:
+			loadedWallet = providers.LoadStrongholdWallet(getIotaSDK(), AddressIndex)
+		}
 	}
 
-	return nil
+	return loadedWallet
 }
 
 func InitWallet() {
@@ -108,7 +112,7 @@ func InitWallet() {
 func Migrate(scheme WalletScheme) {
 	seedHex := config.GetSeedForMigration()
 	if seedHex == "" {
-		fmt.Println("No seed found to migrate found.")
+		fmt.Println("No seed to migrate found.")
 		return
 	}
 
