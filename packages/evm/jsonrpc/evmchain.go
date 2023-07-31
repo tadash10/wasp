@@ -619,7 +619,7 @@ func (e *EVMChain) iscRequestsInBlock(evmBlockNumber uint64) (*blocklog.BlockInf
 		return nil, nil, err
 	}
 	iscBlockIndex := iscState.BlockIndex()
-	e.log.Debugf("GetRequestIDsForBlock blockIndex: %v, ", iscBlockIndex)
+	e.log.Debugf("GetRequestIDsForBlock blockIndex: %v", iscBlockIndex)
 	reqIDs, err := blocklog.GetRequestIDsForBlock(iscState, iscBlockIndex)
 	if err != nil {
 		return nil, nil, err
