@@ -225,7 +225,10 @@ func (e *EVMChain) iscStateFromEVMBlockNumber(blockNumber *big.Int) (state.State
 	if err != nil {
 		return nil, err
 	}
+
 	cachedTrieHash := e.index.BlockTrieRootByIndex(iscBlockIndex)
+	e.log.Debugf("iscStateFromEVMBlockNumber: hasCachedTrieHash: %v", cachedTrieHash != nil)
+
 	if cachedTrieHash != nil {
 		return e.backend.ISCStateByTrieRoot(*cachedTrieHash)
 	}
@@ -616,6 +619,7 @@ func (e *EVMChain) iscRequestsInBlock(evmBlockNumber uint64) (*blocklog.BlockInf
 		return nil, nil, err
 	}
 	iscBlockIndex := iscState.BlockIndex()
+	e.log.Debugf("GetRequestIDsForBlock blockIndex: %v, ", iscBlockIndex)
 	reqIDs, err := blocklog.GetRequestIDsForBlock(iscState, iscBlockIndex)
 	if err != nil {
 		return nil, nil, err
@@ -642,6 +646,7 @@ func (e *EVMChain) iscRequestsInBlock(evmBlockNumber uint64) (*blocklog.BlockInf
 
 func (e *EVMChain) TraceTransaction(txHash common.Hash, config *tracers.TraceConfig) (any, error) {
 	e.log.Debugf("TraceTransaction(txHash=%v, config=?)", txHash)
+
 	tracerType := "callTracer"
 	if config.Tracer != nil {
 		tracerType = *config.Tracer
@@ -651,18 +656,25 @@ func (e *EVMChain) TraceTransaction(txHash common.Hash, config *tracers.TraceCon
 		return nil, err
 	}
 
-	_, _, blockNumber, txIndex, err := e.TransactionByHash(txHash)
+	tx, blockHash, blockNumber, txIndex, err := e.TransactionByHash(txHash)
 	if err != nil {
+		e.log.Debugf("TransactionByHash: threw error %v", err)
 		return nil, err
 	}
+
+	e.log.Debugf("TransactionByHash: \n txHash: %v, \n txNonce: %v, \n txChainId: %v, \n blockHash: %v \n blockNumber: %v, \n txIndex: %v", tx.Hash().String(), tx.Nonce(), tx.ChainId(), blockHash.String(), blockNumber, txIndex)
+
 	if blockNumber == 0 {
 		return nil, errors.New("tx not found")
 	}
 
 	iscBlock, iscRequestsInBlock, err := e.iscRequestsInBlock(blockNumber)
 	if err != nil {
+		e.log.Debugf("iscRequestsInBlock: threw error %v", err)
 		return nil, err
 	}
+
+	e.log.Debugf("iscRequestsInBlock: \n iscBlockHash: %v, \n iscBlockTimestamp: %v, \n iscBlockTotalRequests: %v, \n len(iscRequestsInBlock): %v", iscBlock.String(), iscBlock.Timestamp, iscBlock.TotalRequests, len(iscRequestsInBlock))
 
 	err = e.backend.EVMTraceTransaction(
 		iscBlock.PreviousAliasOutput,
