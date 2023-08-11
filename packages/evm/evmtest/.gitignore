@@ -9,3 +9,5 @@ ERC20NativeTokens.*
 ERC721NFTs.*
 ERC721NFTCollection.*
 IERC721Receiver.*
+MulticallRevertTest.*
+ExternalCall.*

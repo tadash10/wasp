@@ -66,6 +66,14 @@ type erc20ContractInstance struct {
 	*evmContractInstance
 }
 
+type multicallRevertContractInstance struct {
+	*evmContractInstance
+}
+
+type externalCallInstance struct {
+	*evmContractInstance
+}
+
 type loopContractInstance struct {
 	*evmContractInstance
 }
@@ -291,6 +299,14 @@ func (e *soloChainEnv) deployERC20ExampleContract(creator *ecdsa.PrivateKey) *er
 	return &erc20ContractInstance{e.deployContract(creator, evmtest.ERC20ExampleContractABI, evmtest.ERC20ExampleContractBytecode)}
 }
 
+func (e *soloChainEnv) deployMulticallRevertContract(creator *ecdsa.PrivateKey) *multicallRevertContractInstance {
+	return &multicallRevertContractInstance{e.deployContract(creator, evmtest.MulticallRevertTestContractABI, evmtest.MulticallRevertTestContractBytecode)}
+}
+
+func (e *soloChainEnv) deployExternalCallContract(creator *ecdsa.PrivateKey) *externalCallInstance {
+	return &externalCallInstance{e.deployContract(creator, evmtest.ExternalCallContractABI, evmtest.ExternalCallContractBytecode)}
+}
+
 func (e *soloChainEnv) signer() types.Signer {
 	return evmutil.Signer(big.NewInt(int64(e.evmChainID)))
 }
@@ -482,6 +498,7 @@ func (e *evmContractInstance) callFn(opts []ethCallOptions, fnName string, args 
 	sendTxErr := e.chain.evmChain.SendTransaction(res.tx)
 	res.iscReceipt = e.chain.soloChain.LastReceipt()
 	res.evmReceipt = e.chain.evmChain.TransactionReceipt(res.tx.Hash())
+
 	return res, sendTxErr
 }
 
@@ -556,6 +573,50 @@ func (e *erc20ContractInstance) totalSupply() *big.Int {
 	v := new(big.Int)
 	require.NoError(e.chain.t, e.callView("totalSupply", nil, &v))
 	return v
+}
+
+func (e *multicallRevertContractInstance) testRevert() (res callFnResult, err error) {
+	return e.callFn(nil, "testRevert")
+}
+
+func (e *multicallRevertContractInstance) callRevertTestByItself() (res callFnResult, err error) {
+	return e.callFn(nil, "callRevertTestByItself")
+}
+
+func (e *multicallRevertContractInstance) increaseCount() (res callFnResult, err error) {
+	return e.callFn(nil, "increaseCount")
+}
+
+func (e *multicallRevertContractInstance) getCount() uint32 {
+	var v uint32
+	require.NoError(e.chain.t, e.callView("getCount", nil, &v))
+	return v
+}
+
+type MulticallInternal struct {
+	Target   common.Address
+	GasLimit *big.Int
+	CallData []byte
+}
+
+type MulticallArg struct {
+	Contract common.Address
+	GasLimit *big.Int
+
+	Tx *types.Transaction
+}
+
+func (m *externalCallInstance) callExternal(call MulticallArg, opts ...ethCallOptions) (callFnResult, error) {
+	txBinary, err := call.Tx.MarshalBinary()
+	if err != nil {
+		return callFnResult{}, err
+	}
+
+	return m.callFn(opts, "callExternal", MulticallInternal{
+		Target:   call.Contract,
+		GasLimit: call.GasLimit,
+		CallData: txBinary,
+	})
 }
 
 func (e *erc20ContractInstance) transfer(recipientAddress common.Address, amount *big.Int, opts ...ethCallOptions) (res callFnResult, err error) {

@@ -90,6 +90,76 @@ func TestStorageContract(t *testing.T) {
 	testdbhash.VerifyDBHash(env.solo, t.Name())
 }
 
+func TestRevert(t *testing.T) {
+	env := initEVM(t)
+	ethKey, _ := env.soloChain.NewEthereumAccountWithL2Funds()
+
+	// deploy solidity `erc20` contract
+	c := env.deployMulticallRevertContract(ethKey)
+
+	_, err := c.testRevert()
+	require.Error(t, err)
+	require.Equal(t, uint32(0), c.getCount())
+
+	_, err = c.callRevertTestByItself()
+	require.Error(t, err)
+	require.Equal(t, uint32(0), c.getCount())
+
+}
+
+func TestRevertOfSubCall(t *testing.T) {
+	env := initEVM(t)
+	ethKey, _ := env.soloChain.NewEthereumAccountWithL2Funds()
+
+	// deploy solidity `erc20` contract
+	c := env.deployMulticallRevertContract(ethKey)
+	mc := env.deployExternalCallContract(ethKey)
+
+	callItemOK, err := c.buildEthTx([]ethCallOptions{
+		{gasLimit: 20000},
+	}, "callRevertTestByItself")
+	require.NoError(t, err)
+
+	result, err := mc.callExternal(MulticallArg{Contract: c.address, GasLimit: big.NewInt(200000), Tx: callItemOK})
+	fmt.Println(result)
+	counter := c.getCount()
+	require.Equal(t, uint32(0), counter)
+}
+
+/*
+func TestMultiTestContract(t *testing.T) {
+	env := initEVM(t)
+	ethKey, _ := env.soloChain.NewEthereumAccountWithL2Funds()
+
+	// deploy solidity `erc20` contract
+	c := env.deployMulticallRevertContract(ethKey)
+	multicall := env.deployExternalCallContract(ethKey)
+
+	require.Equal(t, uint32(0), c.getCount())
+	result, _ := c.testRevert()
+	fmt.Printf("%v %v %v", env.getBlockNumber(), result, env.getBlockNumber())
+
+	callBuilder := newMulticallTestBuilder(t, c, multicall)
+
+	calls := callBuilder.
+		AddView().
+		AddSuccess().
+		AddSuccess().
+		AddSuccess().
+		AddFail().
+		AddSuccess().
+		AddSuccess().
+		AddFail().
+		AddSuccess().
+		AddView().
+		Calls()
+
+	result, err := multicall.multicall(calls)
+
+	require.NoError(t, err)
+
+}*/
+
 func TestERC20Contract(t *testing.T) {
 	env := initEVM(t)
 	ethKey, _ := env.soloChain.NewEthereumAccountWithL2Funds()
