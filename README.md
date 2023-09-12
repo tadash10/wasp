@@ -1,27 +1,29 @@
 ![Wasp logo](documentation/static/img/logo/WASP_logo_dark.png)
 
-# Welcome to the Wasp repository!
+#  Legacy-Migration Wasp
 
-[Wasp](https://github.com/iotaledger/wasp) is a node software developed by the
-[IOTA Foundation](http://iota.org) to run the _IOTA Smart Contracts_
-(_ISC_ in short) on top of the _IOTA Tangle_.  Here's a [high level
-introduction](https://blog.iota.org/an-introduction-to-iota-smart-contracts-16ea6f247936)
-into ISC.
+For the regular wasp node software go to https://github.com/iotaledger/wasp .
 
-The comprehensive overview of design decisions of _IOTA Smart Contracts_ can be found in the
-[whitepaper](https://github.com/iotaledger/wasp/raw/master/documentation/ISC_WP_Nov_10_2021.pdf).
+<!-- TODO add link -->
+This version of the wasp software was made with the objective of allowing the [migration of legacy funds](.) from the pre-chysalis network.
 
-## Documentation
+Contains a simple [contract](./packages/legacymigration/interface.go) that can be called to release funds given a valid signature of an unmigrated bundle.
 
-The documentation for Wasp and IOTA Smart Contracts can be found on the [IOTA Wiki](https://wiki.iota.org/shimmer/smart-contracts/overview).
+This repo also contains a [snapshot](./packages/legacymigration/migratable.csv) of the old network containing all the unmigrated bundles
 
-## Contributing
+Everytime a migration is successful, the funds are released on L1 to the target address and an [event](./packages/legacymigration/impl.go:102) is published, making the entire process auditable.
 
-If you want to contribute to this repository, consider posting a [bug
-report](https://github.com/iotaledger/wasp/issues/new-issue), feature request
-or a [pull request](https://github.com/iotaledger/wasp/pulls/).
+<!-- TODO add link -->
+At any point, the [governance contract of the EVM Chain](.) can vote and decide to burn the unmigrated tokens.
 
-Please read [this](documentation/docs/contribute.md) before creating a pull request.
+## Instructions
 
-You can also join our [Discord server](https://discord.iota.org/) and ping us
-in `#smartcontracts-dev`.
+<!-- TODO -->
+All committee participants must use the [node-docker-setup with the legacy-migration wasp software](.).
+
+The deployer must use the [wasp-cli compiled from this branch]().
+
+      - deploy command
+      - funds must be deposited to the chain
+      - call views to confirm everything is as expected 
+      - relinquish gov controller of the chain UTXO
